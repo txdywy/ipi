@@ -35,7 +35,7 @@ const result: ProbeResult = {
 }
 
 describe('ResultRow', () => {
-  it('shows aggregated probe stats while preserving logo fallback behavior', () => {
+  it('shows compact aggregated stats while preserving logo fallback behavior', () => {
     render(
       <ResultRow
         target={target}
@@ -45,9 +45,10 @@ describe('ResultRow', () => {
       />,
     )
 
-    expect(screen.getByText('成功率：80%')).toBeInTheDocument()
-    expect(screen.getByText('平均耗时：273 ms')).toBeInTheDocument()
-    expect(screen.getByText('探测次数：5')).toBeInTheDocument()
+    expect(screen.getByText('成功率 80%')).toBeInTheDocument()
+    expect(screen.getByText('平均 273 ms')).toBeInTheDocument()
+    expect(screen.getByText('5 次探测')).toBeInTheDocument()
+    expect(screen.getByAltText('GitHub logo')).toHaveClass('result-row__logo--favicon')
 
     fireEvent.error(screen.getByAltText('GitHub logo'))
 

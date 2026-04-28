@@ -24,7 +24,8 @@ export function App() {
   const [runState, setRunState] = useState<RunState>('idle')
   const [results, setResults] = useState<ProbeResult[]>([])
   const [lastRunAt, setLastRunAt] = useState<Date | null>(null)
-  const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
+  const [activeTargetIds, setActiveTargetIds] = useState<string[]>([])
+  const [activeAttemptTargetId, setActiveAttemptTargetId] = useState<string | null>(null)
   const [activeAttempt, setActiveAttempt] = useState(0)
   const [completedCount, setCompletedCount] = useState(0)
   const [runCount, setRunCount] = useState(0)
@@ -49,7 +50,8 @@ export function App() {
     [results],
   )
 
-  const activeTarget = TARGETS.find((target) => target.id === activeTargetId) ?? null
+  const activeAttemptTarget =
+    TARGETS.find((target) => target.id === activeAttemptTargetId && activeTargetIds.includes(target.id)) ?? null
 
   const startCheckup = async () => {
     if (runState === 'running') return
@@ -57,28 +59,33 @@ export function App() {
     setRunState('running')
     setResults([])
     setCompletedCount(0)
-    setActiveTargetId(null)
+    setActiveTargetIds([])
+    setActiveAttemptTargetId(null)
     setActiveAttempt(0)
     setRunCount((value) => value + 1)
 
     const nextResults = await runAllProbes({
       onTargetStart: (target) => {
-        setActiveTargetId(target.id)
+        setActiveTargetIds((current) => (current.includes(target.id) ? current : [...current, target.id]))
+        setActiveAttemptTargetId(target.id)
         setActiveAttempt(0)
       },
-      onTargetAttempt: (_target, attemptNumber) => {
+      onTargetAttempt: (target, attemptNumber) => {
+        setActiveAttemptTargetId(target.id)
         setActiveAttempt(attemptNumber)
       },
       onTargetFinish: (result, completed) => {
         setResults((current) => [...current, result])
         setCompletedCount(completed)
+        setActiveTargetIds((current) => current.filter((targetId) => targetId !== result.target.id))
       },
     })
 
     setResults(nextResults)
     setCompletedCount(nextResults.length)
     setLastRunAt(new Date())
-    setActiveTargetId(null)
+    setActiveTargetIds([])
+    setActiveAttemptTargetId(null)
     setActiveAttempt(0)
     setRunState('done')
   }
@@ -139,9 +146,11 @@ export function App() {
               <strong>{statusText}</strong>
               <p>
                 {runState === 'running'
-                  ? activeTarget
-                    ? `正在检测 ${activeTarget.label}，第 ${activeAttempt || 1}/${ATTEMPTS_PER_TARGET} 次探测进行中，汇总结果会按目标逐项落入页面。`
-                    : '正在准备第一项目标的多次探测。'
+                  ? activeAttemptTarget
+                    ? `正在并发检测 ${activeTargetIds.length} 个目标，当前显示 ${activeAttemptTarget.label} 的第 ${activeAttempt || 1}/${ATTEMPTS_PER_TARGET} 次探测，汇总结果会按目标逐项落入页面。`
+                    : activeTargetIds.length > 0
+                      ? `正在并发检测 ${activeTargetIds.length} 个目标，汇总结果会按目标逐项落入页面。`
+                      : '正在准备第一项目标的多次探测。'
                   : '结果会保留为当前网络环境的一次即时快照。'}
               </p>
             </div>
@@ -217,7 +226,7 @@ export function App() {
               description={group.description}
               items={group.items}
               isRunning={runState === 'running'}
-              activeTargetId={activeTargetId}
+              activeTargetIds={activeTargetIds}
             />
           ))}
         </section>

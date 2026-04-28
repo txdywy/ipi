@@ -4,6 +4,7 @@ import { classifyProbeResult } from '../classify/classifier'
 import { probeTarget } from './probeAdapters'
 
 const ATTEMPTS_PER_TARGET = 5
+const TARGET_CONCURRENCY = 3
 
 interface ProbeRunCallbacks {
   onTargetStart?: (target: Target, index: number, total: number) => void
@@ -26,18 +27,35 @@ const runTargetAttempts = async (
 }
 
 export const runAllProbes = async (callbacks: ProbeRunCallbacks = {}): Promise<ProbeResult[]> => {
-  const results: ProbeResult[] = []
   const total = TARGETS.length
+  const orderedResults: Array<ProbeResult | undefined> = new Array(total)
+  const workerCount = Math.min(TARGET_CONCURRENCY, total)
+  let nextIndex = 0
+  let completed = 0
 
-  for (const [index, target] of TARGETS.entries()) {
+  const runNextTarget = async (): Promise<void> => {
+    const index = nextIndex
+    nextIndex += 1
+
+    if (index >= total) {
+      return
+    }
+
+    const target = TARGETS[index]
     callbacks.onTargetStart?.(target, index, total)
     const attempts = await runTargetAttempts(target, callbacks.onTargetAttempt)
     const result = classifyProbeResult(target, attempts)
-    results.push(result)
-    callbacks.onTargetFinish?.(result, results.length, total)
+
+    orderedResults[index] = result
+    completed += 1
+    callbacks.onTargetFinish?.(result, completed, total)
+
+    await runNextTarget()
   }
 
-  return results
+  await Promise.all(Array.from({ length: workerCount }, () => runNextTarget()))
+
+  return orderedResults.filter((result): result is ProbeResult => Boolean(result))
 }
 
 export { ATTEMPTS_PER_TARGET }
