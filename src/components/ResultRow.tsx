@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react'
 import type { ProbeResult, ProbeStatus, Target } from '../types'
 
 const STATUS_COPY: Record<ProbeStatus, string> = {
@@ -51,18 +52,32 @@ interface ResultRowProps {
 }
 
 export function ResultRow({ target, result, isRunning, isActive, attemptCount }: ResultRowProps) {
+  const [logoFailed, setLogoFailed] = useState(false)
   const status = isActive ? 'running' : result?.status ?? 'idle'
   const reason = isActive
     ? '当前正在进行探测，等待浏览器返回本轮结果。'
     : result?.reason ?? target.emphasis
   const latency = typeof result?.latencyMs === 'number' ? `${result.latencyMs} ms` : '耗时待定'
   const progressValue = getPerformanceValue(result)
+  const fallbackLetters = useMemo(() => target.label.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'IP', [target.label])
 
   return (
     <article className={`result-row${isActive ? ' result-row--active' : ''}`}>
       <div className="result-row__topline">
         <div className="result-row__identity">
-          <img className="result-row__logo" src={target.logoUrl} alt={`${target.label} logo`} loading="lazy" />
+          {logoFailed ? (
+            <span className="result-row__logo-fallback" aria-label={`${target.label} fallback logo`}>
+              {fallbackLetters}
+            </span>
+          ) : (
+            <img
+              className="result-row__logo"
+              src={target.logoUrl}
+              alt={`${target.label} logo`}
+              loading="lazy"
+              onError={() => setLogoFailed(true)}
+            />
+          )}
           <div>
             <div className="result-row__title-wrap">
               <h3>{target.label}</h3>
