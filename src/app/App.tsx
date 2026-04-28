@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { GroupPanel } from '../components/GroupPanel'
 import { SummaryCards } from '../components/SummaryCards'
 import { GROUPS, TARGETS } from '../config/targets'
-import { runAllProbes } from '../lib/probes/probeRunner'
+import { ATTEMPTS_PER_TARGET, runAllProbes } from '../lib/probes/probeRunner'
 import type { ProbeResult } from '../types'
 
 type RunState = 'idle' | 'running' | 'done'
@@ -23,8 +23,8 @@ export function App() {
   const [results, setResults] = useState<ProbeResult[]>([])
   const [lastRunAt, setLastRunAt] = useState<Date | null>(null)
   const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
+  const [activeAttempt, setActiveAttempt] = useState(0)
   const [completedCount, setCompletedCount] = useState(0)
-  const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({})
   const [runCount, setRunCount] = useState(0)
 
   const totalCount = TARGETS.length
@@ -36,10 +36,9 @@ export function App() {
         items: TARGETS.filter((target) => target.group === group.key).map((target) => ({
           target,
           result: results.find((result) => result.target.id === target.id),
-          attemptCount: attemptCounts[target.id] ?? 0,
         })),
       })),
-    [attemptCounts, results],
+    [results],
   )
 
   const activeTarget = TARGETS.find((target) => target.id === activeTargetId) ?? null
@@ -51,19 +50,20 @@ export function App() {
     setResults([])
     setCompletedCount(0)
     setActiveTargetId(null)
+    setActiveAttempt(0)
     setRunCount((value) => value + 1)
 
     const nextResults = await runAllProbes({
       onTargetStart: (target) => {
         setActiveTargetId(target.id)
+        setActiveAttempt(0)
+      },
+      onTargetAttempt: (_target, attemptNumber) => {
+        setActiveAttempt(attemptNumber)
       },
       onTargetFinish: (result, completed) => {
         setResults((current) => [...current, result])
         setCompletedCount(completed)
-        setAttemptCounts((current) => ({
-          ...current,
-          [result.target.id]: (current[result.target.id] ?? 0) + 1,
-        }))
       },
     })
 
@@ -71,6 +71,7 @@ export function App() {
     setCompletedCount(nextResults.length)
     setLastRunAt(new Date())
     setActiveTargetId(null)
+    setActiveAttempt(0)
     setRunState('done')
   }
 
@@ -102,7 +103,7 @@ export function App() {
             </p>
             <div className="hero__chips">
               <span className="hero-chip">纯前端采样</span>
-              <span className="hero-chip">逐项返回</span>
+              <span className="hero-chip">每目标 5 次探测</span>
               <span className="hero-chip">PC / Mobile 自适应</span>
             </div>
           </div>
@@ -114,8 +115,8 @@ export function App() {
               <p>
                 {runState === 'running'
                   ? activeTarget
-                    ? `正在检测 ${activeTarget.label}，结果会按目标逐项落入页面。`
-                    : '正在准备第一项检测。'
+                    ? `正在检测 ${activeTarget.label}，第 ${activeAttempt || 1}/${ATTEMPTS_PER_TARGET} 次探测进行中，汇总结果会按目标逐项落入页面。`
+                    : '正在准备第一项目标的多次探测。'
                   : '结果会保留为当前网络环境的一次即时快照。'}
               </p>
             </div>

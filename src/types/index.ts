@@ -36,8 +36,10 @@ export interface ProbeResult {
   status: ProbeStatus
   confidence: Confidence
   latencyMs?: number
+  successRate: number
+  attemptCount: number
   reason: string
-  raw: ProbeRawResult
+  raw: ProbeRawResult[]
 }
 
 export interface GroupMeta {

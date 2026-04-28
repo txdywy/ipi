@@ -4,7 +4,6 @@ import { ResultRow } from './ResultRow'
 interface GroupPanelItem {
   target: Target
   result?: ProbeResult
-  attemptCount: number
 }
 
 interface GroupPanelProps {
@@ -55,7 +54,6 @@ export function GroupPanel({
             key={item.target.id}
             target={item.target}
             result={item.result}
-            attemptCount={item.attemptCount}
             isRunning={isRunning}
             isActive={activeTargetId === item.target.id}
           />

@@ -14,6 +14,11 @@ const averageLatency = (results: ProbeResult[]) => {
   return `${Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)} ms`
 }
 
+const averageSuccessRate = (results: ProbeResult[]) => {
+  if (results.length === 0) return '--'
+  return `${Math.round(results.reduce((sum, result) => sum + result.successRate, 0) / results.length)}%`
+}
+
 interface SummaryCardsProps {
   results: ProbeResult[]
   completedCount: number
@@ -50,9 +55,15 @@ export function SummaryCards({ results, completedCount, totalCount, runState }: 
       </article>
 
       <article className="summary-card card">
+        <span className="summary-card__label">平均成功率</span>
+        <strong>{averageSuccessRate(results)}</strong>
+        <p>基于每个目标 5 次探测的成功占比汇总。</p>
+      </article>
+
+      <article className="summary-card card">
         <span className="summary-card__label">平均耗时</span>
         <strong>{averageLatency(results)}</strong>
-        <p>仅统计浏览器可以观测到耗时的目标。</p>
+        <p>仅统计浏览器可以观测到成功返回的平均耗时。</p>
       </article>
 
       {STATUSES.map((status) => {
