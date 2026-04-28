@@ -43,6 +43,7 @@ describe('ResultRow', () => {
         isRunning={false}
         isActive={false}
         activeAttempt={0}
+        totalAttempts={5}
       />,
     )
 
@@ -54,5 +55,19 @@ describe('ResultRow', () => {
     fireEvent.error(screen.getByAltText('GitHub logo'))
 
     expect(screen.getByLabelText('GitHub fallback logo')).toBeInTheDocument()
+  })
+
+  it('uses the configured total attempt count for active progress text', () => {
+    render(
+      <ResultRow
+        target={target}
+        isRunning
+        isActive
+        activeAttempt={2}
+        totalAttempts={5}
+      />,
+    )
+
+    expect(screen.getByText('2/5 进行中')).toBeInTheDocument()
   })
 })

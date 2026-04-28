@@ -1,5 +1,6 @@
 import type { ProbeResult, Target } from '../types'
 import { ResultRow } from './ResultRow'
+import { ATTEMPTS_PER_TARGET } from '../lib/probes/probeRunner'
 
 interface GroupPanelItem {
   target: Target
@@ -59,6 +60,7 @@ export function GroupPanel({
             isRunning={isRunning}
             isActive={activeTargetIds.includes(item.target.id)}
             activeAttempt={activeAttemptsByTarget[item.target.id] ?? 0}
+            totalAttempts={ATTEMPTS_PER_TARGET}
           />
         ))}
       </div>

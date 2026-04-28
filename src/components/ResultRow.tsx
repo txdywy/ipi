@@ -49,9 +49,10 @@ interface ResultRowProps {
   isRunning: boolean
   isActive: boolean
   activeAttempt: number
+  totalAttempts: number
 }
 
-export const ResultRow = memo(function ResultRow({ target, result, isRunning, isActive, activeAttempt }: ResultRowProps) {
+export const ResultRow = memo(function ResultRow({ target, result, isRunning, isActive, activeAttempt, totalAttempts }: ResultRowProps) {
   const [logoFailed, setLogoFailed] = useState(false)
   const status = isActive ? 'running' : result?.status ?? 'idle'
   const reason = isActive
@@ -64,8 +65,8 @@ export const ResultRow = memo(function ResultRow({ target, result, isRunning, is
   const successRate = result ? `${result.successRate}%` : '等待中'
   const confidence = result?.confidence ?? '等待中'
   const usesBrandLogo = target.logoUrl.startsWith('/brand-logos/')
-  const attemptLabel = isActive ? `${activeAttempt || 1}/3 进行中` : `${attemptCount} 次探测`
-  const liveProgressValue = isActive ? Math.max(18, Math.round(((activeAttempt || 1) / 3) * 100)) : progressValue
+  const attemptLabel = isActive ? `${activeAttempt || 1}/${totalAttempts} 进行中` : `${attemptCount} 次探测`
+  const liveProgressValue = isActive ? Math.max(18, Math.round(((activeAttempt || 1) / totalAttempts) * 100)) : progressValue
 
   return (
     <article className={`result-row${isActive ? ' result-row--active' : ''}`}>

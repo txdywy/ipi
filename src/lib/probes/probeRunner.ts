@@ -84,7 +84,10 @@ export const runAllProbes = async (callbacks: ProbeRunCallbacks = {}): Promise<P
 
     try {
       const attempts = await runTargetAttempts(target, callbacks.onTargetAttempt, callbacks.signal)
+      if (callbacks.signal?.aborted) return
+
       const result = classifyProbeResult(target, attempts)
+      if (callbacks.signal?.aborted) return
 
       orderedResults[index] = result
       completedCount += 1

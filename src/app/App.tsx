@@ -83,21 +83,26 @@ export function App() {
     setActiveAttempt(0)
     setRunCount((value) => value + 1)
 
+    const isCurrentRun = () => abortControllerRef.current === controller && !controller.signal.aborted
+
     try {
       const nextResults = await runAllProbes({
         signal: controller.signal,
         onTargetStart: (target) => {
+          if (!isCurrentRun()) return
           setActiveTargetIds((current) => (current.includes(target.id) ? current : [...current, target.id]))
           setActiveAttemptsByTarget((current) => ({ ...current, [target.id]: 0 }))
           setActiveAttemptTargetId(target.id)
           setActiveAttempt(0)
         },
         onTargetAttempt: (target, attemptNumber) => {
+          if (!isCurrentRun()) return
           setActiveAttemptsByTarget((current) => ({ ...current, [target.id]: attemptNumber }))
           setActiveAttemptTargetId(target.id)
           setActiveAttempt(attemptNumber)
         },
         onTargetFinish: (result) => {
+          if (!isCurrentRun()) return
           setResults((current) => {
             const next = [...current]
             const idx = next.findIndex(r => r.target.id === result.target.id)
@@ -114,7 +119,7 @@ export function App() {
         },
       })
 
-      if (!controller.signal.aborted) {
+      if (isCurrentRun()) {
         setResults(nextResults)
         setLastRunAt(new Date())
         setRunState('done')

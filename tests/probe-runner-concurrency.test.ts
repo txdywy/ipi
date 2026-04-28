@@ -142,4 +142,53 @@ describe('runAllProbes concurrency', () => {
     expect(results.map((result) => result.target.id)).toEqual(targets.map((target) => target.id))
     expect(classifyProbeResultMock).toHaveBeenCalledTimes(12)
   })
+
+  it('does not classify or publish a target after the run is aborted during an attempt', async () => {
+    attemptLog.length = 0
+    startedTargets.length = 0
+    attemptsByTarget.clear()
+    inflightByTarget.clear()
+    maxInflightByTarget.clear()
+    releaseFirstAttempts.current.clear()
+    probeTargetMock.mockReset()
+    classifyProbeResultMock.mockClear()
+
+    const controller = new AbortController()
+    let releaseAttempt: (() => void) | undefined
+    const onTargetFinish = vi.fn()
+
+    probeTargetMock.mockImplementation(async (target) => {
+      const attemptNumber = (attemptsByTarget.get(target.id) ?? 0) + 1
+      attemptsByTarget.set(target.id, attemptNumber)
+
+      if (target.id === 'a' && attemptNumber === 3) {
+        await new Promise<void>((resolve) => {
+          releaseAttempt = resolve
+        })
+      }
+
+      return {
+        targetId: target.id,
+        signal: 'opaque',
+        durationMs: attemptNumber,
+        ok: true,
+      }
+    })
+
+    const runPromise = runAllProbes({
+      signal: controller.signal,
+      onTargetFinish,
+    })
+
+    await waitForValue(() => attemptsByTarget.get('a') ?? 0, (value) => value === 3)
+
+    controller.abort()
+    releaseAttempt?.()
+
+    const results = await runPromise
+
+    expect(results.find((result) => result.target.id === 'a')).toBeUndefined()
+    expect(onTargetFinish).not.toHaveBeenCalledWith(expect.objectContaining({ target: targets[0] }), expect.any(Number), expect.any(Number))
+    expect(classifyProbeResultMock).not.toHaveBeenCalledWith(targets[0], expect.any(Array))
+  })
 })
