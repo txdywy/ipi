@@ -20,10 +20,16 @@ describe('buildVisitorProfile', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          location: { country: 'Australia', country_code: 'AU', state: 'Queensland', city: 'Brisbane' },
+          location: {
+            country: 'Australia',
+            country_code: 'AU',
+            state: 'Queensland',
+            city: 'Brisbane',
+            timezone: 'Australia/Brisbane',
+          },
           connection: { isp: 'Cloudflare' },
           asn: { asn: 13335, org: 'CLOUDFLARENET' },
-          company: { type: 'hosting' },
+          company: { name: 'Cloudflare', type: 'hosting' },
         }),
       })
       .mockResolvedValueOnce({
@@ -40,10 +46,83 @@ describe('buildVisitorProfile', () => {
 
     expect(profile.status).toBe('ready')
     expect(profile.ipv4?.address).toBe('1.1.1.1')
+    expect(profile.ipv4?.countryCode).toBe('AU')
+    expect(profile.ipv4?.countryFlag).toBe('🇦🇺')
+    expect(profile.ipv4?.timezone).toBe('Australia/Brisbane')
+    expect(profile.ipv4?.asn).toBe('AS13335')
+    expect(profile.ipv4?.asnOrg).toBe('CLOUDFLARENET')
+    expect(profile.ipv4?.carrier).toBe('Cloudflare')
     expect(profile.ipv6?.address).toBe('240c::1')
     expect(profile.hasIpv6Reachability).toBe(true)
+    expect(profile.summary).toContain('🇦🇺')
     expect(profile.summary).toContain('1.1.1.1')
     expect(profile.dataSources.length).toBe(2)
+  })
+
+  it('fills missing ipv4 intel fields from later providers without overwriting earlier values', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ip: '1.1.1.1' }) })
+      .mockRejectedValueOnce(new Error('ipv6 unavailable'))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          location: { country: 'Australia', country_code: 'AU', state: 'Queensland', city: 'Brisbane' },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          country: 'New Zealand',
+          country_code: 'NZ',
+          connection: { org: 'Cloudflare' },
+          asn: { org: 'CLOUDFLARENET' },
+          timezone: { id: 'Australia/Brisbane' },
+        }),
+      })
+
+    const profile = await buildVisitorProfile()
+
+    expect(profile.status).toBe('partial')
+    expect(profile.ipv4?.country).toBe('Australia')
+    expect(profile.ipv4?.org).toBe('Cloudflare')
+    expect(profile.ipv4?.asnOrg).toBe('CLOUDFLARENET')
+    expect(profile.ipv4?.timezone).toBe('Australia/Brisbane')
+  })
+
+  it('keeps an available profile when a later provider returns an inconclusive payload', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ip: '1.1.1.1' }) })
+      .mockRejectedValueOnce(new Error('ipv6 unavailable'))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          location: {
+            country: 'Australia',
+            country_code: 'AU',
+            state: 'Queensland',
+            city: 'Brisbane',
+            timezone: 'Australia/Brisbane',
+          },
+          connection: { isp: 'Cloudflare' },
+          asn: { asn: 13335, org: 'CLOUDFLARENET' },
+          company: { name: 'Cloudflare', type: 'hosting' },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: false,
+          message: 'quota exceeded',
+        }),
+      })
+
+    const profile = await buildVisitorProfile()
+
+    expect(profile.status).toBe('partial')
+    expect(profile.ipv4?.status).toBe('available')
+    expect(profile.ipv4?.countryFlag).toBe('🇦🇺')
+    expect(profile.ipv4?.notes).toBe('quota exceeded')
   })
 
   it('builds a partial profile when only ipv4 is available', async () => {
