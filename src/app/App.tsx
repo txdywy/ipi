@@ -23,6 +23,7 @@ export function App() {
   const [results, setResults] = useState<ProbeResult[]>([])
   const [lastRunAt, setLastRunAt] = useState<Date | null>(null)
   const [activeTargetIds, setActiveTargetIds] = useState<string[]>([])
+  const [activeAttemptsByTarget, setActiveAttemptsByTarget] = useState<Record<string, number>>({})
   const [activeAttemptTargetId, setActiveAttemptTargetId] = useState<string | null>(null)
   const [activeAttempt, setActiveAttempt] = useState(0)
   const [runCount, setRunCount] = useState(0)
@@ -38,6 +39,7 @@ export function App() {
 
   const totalCount = TARGETS.length
   const completedCount = results.length
+  const queuedCount = Math.max(totalCount - completedCount - activeTargetIds.length, 0)
   const completionPercent = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
 
   const resultsMap = useMemo(() => {
@@ -76,6 +78,7 @@ export function App() {
     setRunState('running')
     setResults([])
     setActiveTargetIds([])
+    setActiveAttemptsByTarget({})
     setActiveAttemptTargetId(null)
     setActiveAttempt(0)
     setRunCount((value) => value + 1)
@@ -85,10 +88,12 @@ export function App() {
         signal: controller.signal,
         onTargetStart: (target) => {
           setActiveTargetIds((current) => (current.includes(target.id) ? current : [...current, target.id]))
+          setActiveAttemptsByTarget((current) => ({ ...current, [target.id]: 0 }))
           setActiveAttemptTargetId(target.id)
           setActiveAttempt(0)
         },
         onTargetAttempt: (target, attemptNumber) => {
+          setActiveAttemptsByTarget((current) => ({ ...current, [target.id]: attemptNumber }))
           setActiveAttemptTargetId(target.id)
           setActiveAttempt(attemptNumber)
         },
@@ -101,6 +106,11 @@ export function App() {
             return next
           })
           setActiveTargetIds((current) => current.filter((targetId) => targetId !== result.target.id))
+          setActiveAttemptsByTarget((current) => {
+            const next = { ...current }
+            delete next[result.target.id]
+            return next
+          })
         },
       })
 
@@ -109,6 +119,7 @@ export function App() {
         setLastRunAt(new Date())
         setRunState('done')
         setActiveTargetIds([])
+        setActiveAttemptsByTarget({})
         setActiveAttemptTargetId(null)
         setActiveAttempt(0)
       }
@@ -156,7 +167,7 @@ export function App() {
             <p className="eyebrow">IPI NETWORK CHECKUP</p>
             <h1>当前网络访问体检</h1>
             <p className="hero__copy">
-              页面打开即自动完成第一轮检测，重点观察当前访问者对中国大陆、国际主流与困难目标的网页资源访问表现。
+              页面打开即自动完成第一轮检测，重点观察当前访问者对中国大陆、港澳台、国际主流、游戏娱乐与困难目标的网页资源访问表现。
             </p>
             <div className="hero__chips">
               <span className="hero-chip">纯前端采样</span>
@@ -196,6 +207,10 @@ export function App() {
               <div>
                 <span>当前进度</span>
                 <strong>{completedCount}/{totalCount}</strong>
+              </div>
+              <div>
+                <span>并发 / 排队</span>
+                <strong>{activeTargetIds.length}/{queuedCount}</strong>
               </div>
             </div>
 
@@ -252,6 +267,7 @@ export function App() {
               items={group.items}
               isRunning={runState === 'running'}
               activeTargetIds={activeTargetIds}
+              activeAttemptsByTarget={activeAttemptsByTarget}
             />
           ))}
         </section>

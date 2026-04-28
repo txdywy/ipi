@@ -38,23 +38,6 @@ interface IpApiCoResponse {
   version?: string
 }
 
-interface IpApiComResponse {
-  status?: 'success' | 'fail'
-  message?: string
-  country?: string
-  countryCode?: string
-  regionName?: string
-  city?: string
-  timezone?: string
-  isp?: string
-  org?: string
-  as?: string
-  asname?: string
-  mobile?: boolean
-  proxy?: boolean
-  hosting?: boolean
-}
-
 interface IpSbResponse {
   ip?: string
   country?: string
@@ -66,6 +49,18 @@ interface IpSbResponse {
   organization?: string
   asn_organization?: string
   asn?: number | string
+}
+
+interface FreeIpApiResponse {
+  ipVersion?: number
+  countryName?: string
+  countryCode?: string
+  regionName?: string
+  cityName?: string
+  timeZones?: string[]
+  asn?: string
+  asnOrganization?: string
+  isProxy?: boolean
 }
 
 interface IpWhoIsResponse {
@@ -99,10 +94,6 @@ const buildProviderUrl = (provider: IpIntelProvider, address: string) => {
 
   if (provider.parser === 'ipapi-co') {
     return `${provider.endpoint}${encodedAddress}/json/`
-  }
-
-  if (provider.parser === 'ip-api') {
-    return `${provider.endpoint}${encodedAddress}?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting`
   }
 
   return `${provider.endpoint}${encodedAddress}`
@@ -163,33 +154,6 @@ const parseIpApiCo = async (record: VisitorIpRecord, response: Response) => {
   })
 }
 
-const parseIpApiCom = async (record: VisitorIpRecord, response: Response) => {
-  const data = (await response.json()) as IpApiComResponse
-
-  if (data.status === 'fail') {
-    return mergeVisitorIpRecord(record, {
-      status: record.status === 'available' ? 'available' : 'inconclusive',
-      confidence: record.status === 'available' ? record.confidence : 'low',
-      notes: data.message ?? 'ip-api.com 未返回成功结果。',
-    })
-  }
-
-  return mergeVisitorIpRecord(record, {
-    status: 'available',
-    country: data.country,
-    countryCode: data.countryCode,
-    region: data.regionName,
-    city: data.city,
-    timezone: data.timezone,
-    isp: data.isp,
-    org: data.org,
-    asn: data.as ? data.as.split(' ')[0] : undefined,
-    asnOrg: data.asname,
-    networkType: data.hosting ? 'hosting' : data.mobile ? 'mobile' : data.proxy ? 'proxy' : undefined,
-    confidence: 'high',
-  })
-}
-
 const parseIpSb = async (record: VisitorIpRecord, response: Response) => {
   const data = (await response.json()) as IpSbResponse
 
@@ -205,6 +169,24 @@ const parseIpSb = async (record: VisitorIpRecord, response: Response) => {
     asn: data.asn ? `AS${data.asn}` : undefined,
     asnOrg: data.asn_organization,
     carrier: data.organization,
+    confidence: 'medium',
+  })
+}
+
+const parseFreeIpApi = async (record: VisitorIpRecord, response: Response) => {
+  const data = (await response.json()) as FreeIpApiResponse
+
+  return mergeVisitorIpRecord(record, {
+    status: 'available',
+    country: data.countryName,
+    countryCode: data.countryCode,
+    region: data.regionName,
+    city: data.cityName,
+    timezone: data.timeZones?.[0],
+    org: data.asnOrganization,
+    asn: data.asn ? `AS${data.asn.replace(/^AS/i, '')}` : undefined,
+    asnOrg: data.asnOrganization,
+    networkType: data.isProxy ? 'proxy' : data.ipVersion ? `IPv${data.ipVersion}` : undefined,
     confidence: 'medium',
   })
 }
@@ -266,13 +248,13 @@ export const fetchIpIntel = async (record: VisitorIpRecord): Promise<VisitorIpRe
         continue
       }
 
-      if (provider.parser === 'ip-api') {
-        mergedRecord = await parseIpApiCom(nextRecord, response)
+      if (provider.parser === 'ip-sb') {
+        mergedRecord = await parseIpSb(nextRecord, response)
         continue
       }
 
-      if (provider.parser === 'ip-sb') {
-        mergedRecord = await parseIpSb(nextRecord, response)
+      if (provider.parser === 'freeipapi') {
+        mergedRecord = await parseFreeIpApi(nextRecord, response)
         continue
       }
 

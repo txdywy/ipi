@@ -81,20 +81,13 @@ describe('buildVisitorProfile', () => {
         asn_organization: 'Cloudflare, Inc.',
         asn: 13335,
       }),
-      'http://ip-api.com/json/1.1.1.1?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting': jsonResponse({
-        status: 'success',
-        country: 'Australia',
-        countryCode: 'AU',
-        regionName: 'Queensland',
-        city: 'South Brisbane',
-        timezone: 'Australia/Brisbane',
-        isp: 'Cloudflare, Inc',
-        org: 'APNIC and Cloudflare DNS Resolver project',
-        as: 'AS13335 Cloudflare, Inc.',
-        asname: 'CLOUDFLARENET',
-        hosting: true,
+      'https://free.freeipapi.com/api/json/1.1.1.1': jsonResponse({
+        ipVersion: 4,
+        timeZones: ['Australia/Sydney'],
+        asn: '13335',
+        asnOrganization: 'Cloudflare, Inc.',
+        isProxy: false,
       }),
-      'https://ipwho.is/1.1.1.1': jsonResponse({ success: false, message: 'CORS is not supported on the Free plan' }, 403),
       'https://api.ipapi.is/?q=240c%3A%3A1': jsonResponse({
         location: { country: 'China', country_code: 'CN', state: 'Beijing', city: 'Beijing', timezone: 'Asia/Shanghai' },
         connection: { isp: 'China Telecom' },
@@ -111,6 +104,17 @@ describe('buildVisitorProfile', () => {
         asn: 'AS4134',
         version: 'IPv6',
       }),
+      'https://free.freeipapi.com/api/json/240c%3A%3A1': jsonResponse({
+        ipVersion: 6,
+        countryName: 'China',
+        countryCode: 'CN',
+        regionName: 'Beijing',
+        cityName: 'Beijing',
+        timeZones: ['Asia/Shanghai'],
+        asn: '4134',
+        asnOrganization: 'CHINANET',
+        isProxy: false,
+      }),
       'https://api.ip.sb/geoip/240c%3A%3A1': jsonResponse({
         country: 'China',
         country_code: 'CN',
@@ -122,7 +126,6 @@ describe('buildVisitorProfile', () => {
         asn_organization: 'CHINANET',
         asn: 4134,
       }),
-      'https://ipwho.is/240c%3A%3A1': jsonResponse({ success: false, message: 'CORS is not supported on the Free plan' }, 403),
     })
 
     const profile = await buildVisitorProfile()
@@ -143,7 +146,7 @@ describe('buildVisitorProfile', () => {
     expect(profile.dataSources.length).toBe(2)
     expect(profile.ipv4?.source).toContain('ipapi.co')
     expect(profile.ipv4?.source).toContain('api.ip.sb')
-    expect(profile.ipv4?.source).toContain('ip-api.com')
+    expect(profile.ipv4?.source).toContain('FreeIPAPI')
   })
 
   it('fills missing ipv4 intel fields from later providers without overwriting earlier values', async () => {
@@ -168,20 +171,13 @@ describe('buildVisitorProfile', () => {
         asn_organization: 'CLOUDFLARENET',
         asn: 13335,
       }),
-      'http://ip-api.com/json/1.1.1.1?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting': jsonResponse({
-        status: 'success',
-        country: 'Australia',
-        countryCode: 'AU',
-        regionName: 'Queensland',
-        city: 'South Brisbane',
-        timezone: 'Australia/Brisbane',
-        isp: 'Cloudflare, Inc',
-        org: 'APNIC and Cloudflare DNS Resolver project',
-        as: 'AS13335 Cloudflare, Inc.',
-        asname: 'CLOUDFLARENET',
-        hosting: true,
+      'https://free.freeipapi.com/api/json/1.1.1.1': jsonResponse({
+        ipVersion: 4,
+        timeZones: ['Australia/Sydney'],
+        asn: '13335',
+        asnOrganization: 'Cloudflare, Inc.',
+        isProxy: false,
       }),
-      'https://ipwho.is/1.1.1.1': jsonResponse({ success: false, message: 'CORS is not supported on the Free plan' }, 403),
     })
 
     const profile = await buildVisitorProfile()
@@ -192,7 +188,7 @@ describe('buildVisitorProfile', () => {
     expect(profile.ipv4?.org).toBe('Cloudflare')
     expect(profile.ipv4?.isp).toBe('Cloudflare')
     expect(profile.ipv4?.asn).toBe('AS13335')
-    expect(profile.ipv4?.asnOrg).toBe('CLOUDFLARENET')
+    expect(profile.ipv4?.asnOrg).toBe('Cloudflare, Inc.')
     expect(profile.ipv4?.timezone).toBe('Australia/Brisbane')
   })
 
@@ -233,13 +229,10 @@ describe('buildVisitorProfile', () => {
         asn_organization: 'CLOUDFLARENET',
         asn: 13335,
       }),
-      'http://ip-api.com/json/1.1.1.1?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting': jsonResponse({
-        status: 'fail',
-        message: 'quota exceeded',
-      }),
-      'https://ipwho.is/1.1.1.1': jsonResponse({
-        success: false,
-        message: 'quota exceeded',
+      'https://free.freeipapi.com/api/json/1.1.1.1': jsonResponse({
+        ipVersion: 4,
+        asn: '13335',
+        asnOrganization: 'Cloudflare, Inc.',
       }),
     })
 
@@ -248,7 +241,7 @@ describe('buildVisitorProfile', () => {
     expect(profile.status).toBe('partial')
     expect(profile.ipv4?.status).toBe('available')
     expect(profile.ipv4?.countryFlag).toBe('🇦🇺')
-    expect(profile.ipv4?.notes).toBe('quota exceeded')
+    expect(profile.ipv4?.notes).toBeUndefined()
   })
 
   it('builds a partial profile when only ipv4 is available', async () => {
@@ -272,20 +265,17 @@ describe('buildVisitorProfile', () => {
         asn_organization: 'Google LLC',
         asn: 15169,
       }),
-      'http://ip-api.com/json/8.8.8.8?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting': jsonResponse({
-        status: 'success',
-        country: 'United States',
+      'https://free.freeipapi.com/api/json/8.8.8.8': jsonResponse({
+        ipVersion: 4,
+        countryName: 'United States',
         countryCode: 'US',
         regionName: 'California',
-        city: 'Mountain View',
-        timezone: 'America/Los_Angeles',
-        isp: 'Google LLC',
-        org: 'Google LLC',
-        as: 'AS15169 Google LLC',
-        asname: 'GOOGLE',
-        hosting: true,
+        cityName: 'Mountain View',
+        timeZones: ['America/Los_Angeles'],
+        asn: '15169',
+        asnOrganization: 'Google LLC',
+        isProxy: false,
       }),
-      'https://ipwho.is/8.8.8.8': jsonResponse({ success: false, message: 'CORS is not supported on the Free plan' }, 403),
     })
 
     const profile = await buildVisitorProfile()

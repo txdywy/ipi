@@ -12,56 +12,21 @@ const {
   probeTargetMock,
   classifyProbeResultMock,
 } = vi.hoisted(() => ({
-  targets: [
-    {
-      id: 'a',
-      label: 'Alpha',
+  targets: Array.from({ length: 12 }, (_, index) => {
+    const id = String.fromCharCode(97 + index)
+    return {
+      id,
+      label: id.toUpperCase(),
       group: 'global',
       probeType: 'fetch',
-      url: 'https://a.example.com',
-      logoUrl: '/a.svg',
+      url: `https://${id}.example.com`,
+      logoUrl: `/${id}.svg`,
       timeoutMs: 1000,
-      location: 'A',
+      location: id.toUpperCase(),
       tags: [],
-      emphasis: 'A',
-    },
-    {
-      id: 'b',
-      label: 'Beta',
-      group: 'global',
-      probeType: 'fetch',
-      url: 'https://b.example.com',
-      logoUrl: '/b.svg',
-      timeoutMs: 1000,
-      location: 'B',
-      tags: [],
-      emphasis: 'B',
-    },
-    {
-      id: 'c',
-      label: 'Gamma',
-      group: 'global',
-      probeType: 'fetch',
-      url: 'https://c.example.com',
-      logoUrl: '/c.svg',
-      timeoutMs: 1000,
-      location: 'C',
-      tags: [],
-      emphasis: 'C',
-    },
-    {
-      id: 'd',
-      label: 'Delta',
-      group: 'global',
-      probeType: 'fetch',
-      url: 'https://d.example.com',
-      logoUrl: '/d.svg',
-      timeoutMs: 1000,
-      location: 'D',
-      tags: [],
-      emphasis: 'D',
-    },
-  ] as Target[],
+      emphasis: id.toUpperCase(),
+    }
+  }) as Target[],
   attemptLog: [] as Array<{ target: string; attempt: number }>,
   startedTargets: [] as string[],
   attemptsByTarget: new Map<string, number>(),
@@ -105,7 +70,7 @@ const waitForValue = async <T>(read: () => T, predicate: (value: T) => boolean) 
 }
 
 describe('runAllProbes concurrency', () => {
-  it('caps concurrent targets at three and keeps attempts sequential within each target', async () => {
+  it('caps concurrent targets at ten and keeps attempts sequential within each target', async () => {
     attemptLog.length = 0
     startedTargets.length = 0
     attemptsByTarget.clear()
@@ -130,7 +95,7 @@ describe('runAllProbes concurrency', () => {
       }
 
       try {
-        if (attemptNumber === 1 && ['a', 'b', 'c'].includes(target.id)) {
+        if (attemptNumber === 1 && ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'].includes(target.id)) {
           await new Promise<void>((resolve) => {
             releaseFirstAttempts.current.set(target.id, resolve)
           })
@@ -149,37 +114,32 @@ describe('runAllProbes concurrency', () => {
 
     const runPromise = runAllProbes()
 
-    const firstWave = await waitForValue(() => startedTargets.slice(), (value) => value.length === 3)
+    const firstWave = await waitForValue(() => startedTargets.slice(), (value) => value.length === 10)
 
-    expect(firstWave).toEqual(['a', 'b', 'c'])
-    expect(startedTargets).not.toContain('d')
-    expect(attemptLog.filter((entry) => entry.target === 'a').map((entry) => entry.attempt)).toEqual([1])
-    expect(attemptLog.filter((entry) => entry.target === 'b').map((entry) => entry.attempt)).toEqual([1])
-    expect(attemptLog.filter((entry) => entry.target === 'c').map((entry) => entry.attempt)).toEqual([1])
-    expect(maxInflightByTarget.get('a')).toBe(1)
-    expect(maxInflightByTarget.get('b')).toBe(1)
-    expect(maxInflightByTarget.get('c')).toBe(1)
+    expect(firstWave).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'])
+    expect(startedTargets).not.toContain('k')
+    for (const targetId of firstWave) {
+      expect(attemptLog.filter((entry) => entry.target === targetId).map((entry) => entry.attempt)).toEqual([1])
+      expect(maxInflightByTarget.get(targetId)).toBe(1)
+    }
 
     releaseFirstAttempts.current.get('a')?.()
 
-    const secondWave = await waitForValue(() => startedTargets.slice(), (value) => value.length === 4)
+    const secondWave = await waitForValue(() => startedTargets.slice(), (value) => value.length === 11)
 
-    expect(secondWave).toEqual(['a', 'b', 'c', 'd'])
+    expect(secondWave).toEqual(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k'])
 
-    releaseFirstAttempts.current.get('b')?.()
-    releaseFirstAttempts.current.get('c')?.()
+    for (const targetId of ['b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j']) {
+      releaseFirstAttempts.current.get(targetId)?.()
+    }
 
     const results = await runPromise
 
-    expect(attemptLog.filter((entry) => entry.target === 'a').map((entry) => entry.attempt)).toEqual([1, 2, 3, 4, 5])
-    expect(attemptLog.filter((entry) => entry.target === 'b').map((entry) => entry.attempt)).toEqual([1, 2, 3, 4, 5])
-    expect(attemptLog.filter((entry) => entry.target === 'c').map((entry) => entry.attempt)).toEqual([1, 2, 3, 4, 5])
-    expect(attemptLog.filter((entry) => entry.target === 'd').map((entry) => entry.attempt)).toEqual([1, 2, 3, 4, 5])
-    expect(maxInflightByTarget.get('a')).toBe(1)
-    expect(maxInflightByTarget.get('b')).toBe(1)
-    expect(maxInflightByTarget.get('c')).toBe(1)
-    expect(maxInflightByTarget.get('d')).toBe(1)
-    expect(results.map((result) => result.target.id)).toEqual(['a', 'b', 'c', 'd'])
-    expect(classifyProbeResultMock).toHaveBeenCalledTimes(4)
+    for (const target of targets) {
+      expect(attemptLog.filter((entry) => entry.target === target.id).map((entry) => entry.attempt)).toEqual([1, 2, 3])
+      expect(maxInflightByTarget.get(target.id)).toBe(1)
+    }
+    expect(results.map((result) => result.target.id)).toEqual(targets.map((target) => target.id))
+    expect(classifyProbeResultMock).toHaveBeenCalledTimes(12)
   })
 })

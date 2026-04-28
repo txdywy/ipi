@@ -3,8 +3,9 @@ import type { ProbeRawResult, ProbeResult, Target } from '../../types'
 import { classifyProbeResult } from '../classify/classifier'
 import { probeTarget } from './probeAdapters'
 
-const ATTEMPTS_PER_TARGET = 5
-const TARGET_CONCURRENCY = 3
+const ATTEMPTS_PER_TARGET = 3
+const TARGET_CONCURRENCY = 10
+const ORIGIN_CONCURRENCY = 2
 
 interface ProbeRunCallbacks {
   onTargetStart?: (target: Target, index: number, total: number) => void
@@ -33,16 +34,48 @@ export const runAllProbes = async (callbacks: ProbeRunCallbacks = {}): Promise<P
   const total = TARGETS.length
   const orderedResults: Array<ProbeResult | undefined> = new Array(total)
   const workerCount = Math.min(TARGET_CONCURRENCY, total)
-  let nextIndex = 0
+  const queuedIndexes = TARGETS.map((_, index) => index)
+  const activeOrigins = new Map<string, number>()
   let completedCount = 0
+
+  const getOrigin = (target: Target) => {
+    try {
+      return new URL(target.url).origin
+    } catch {
+      return target.url
+    }
+  }
+
+  const acquireNextIndex = () => {
+    for (let queueIndex = 0; queueIndex < queuedIndexes.length; queueIndex += 1) {
+      const targetIndex = queuedIndexes[queueIndex]
+      const origin = getOrigin(TARGETS[targetIndex])
+      if ((activeOrigins.get(origin) ?? 0) < ORIGIN_CONCURRENCY) {
+        queuedIndexes.splice(queueIndex, 1)
+        activeOrigins.set(origin, (activeOrigins.get(origin) ?? 0) + 1)
+        return targetIndex
+      }
+    }
+
+    return undefined
+  }
+
+  const releaseOrigin = (target: Target) => {
+    const origin = getOrigin(target)
+    const nextCount = (activeOrigins.get(origin) ?? 1) - 1
+    if (nextCount <= 0) {
+      activeOrigins.delete(origin)
+      return
+    }
+    activeOrigins.set(origin, nextCount)
+  }
 
   const runNextTarget = async (): Promise<void> => {
     if (callbacks.signal?.aborted) return
 
-    const index = nextIndex
-    nextIndex += 1
+    const index = acquireNextIndex()
 
-    if (index >= total) {
+    if (typeof index !== 'number') {
       return
     }
 
@@ -56,14 +89,16 @@ export const runAllProbes = async (callbacks: ProbeRunCallbacks = {}): Promise<P
       orderedResults[index] = result
       completedCount += 1
       callbacks.onTargetFinish?.(result, completedCount, total)
-
-      await runNextTarget()
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return
       }
       throw error
+    } finally {
+      releaseOrigin(target)
     }
+
+    await runNextTarget()
   }
 
   await Promise.all(Array.from({ length: workerCount }, () => runNextTarget()))

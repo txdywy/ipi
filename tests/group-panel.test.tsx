@@ -13,6 +13,7 @@ describe('GroupPanel', () => {
         items={[]}
         isRunning={false}
         activeTargetIds={[]}
+        activeAttemptsByTarget={{}}
       />,
     )
 
