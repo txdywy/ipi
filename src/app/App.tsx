@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { GroupPanel } from '../components/GroupPanel'
 import { SummaryCards } from '../components/SummaryCards'
+import { VisitorProfile } from '../components/VisitorProfile'
 import { GROUPS, TARGETS } from '../config/targets'
+import { buildVisitorProfile } from '../lib/ip/buildVisitorProfile'
 import { ATTEMPTS_PER_TARGET, runAllProbes } from '../lib/probes/probeRunner'
-import type { ProbeResult } from '../types'
+import type { ProbeResult, VisitorProfile as VisitorProfileData } from '../types'
 
 type RunState = 'idle' | 'running' | 'done'
 
@@ -26,6 +28,12 @@ export function App() {
   const [activeAttempt, setActiveAttempt] = useState(0)
   const [completedCount, setCompletedCount] = useState(0)
   const [runCount, setRunCount] = useState(0)
+  const [visitorProfile, setVisitorProfile] = useState<VisitorProfileData>({
+    status: 'loading',
+    hasIpv6Reachability: 'unknown',
+    dataSources: [],
+    summary: '正在尝试识别当前访问者的公网网络信息。',
+  })
 
   const totalCount = TARGETS.length
 
@@ -74,6 +82,23 @@ export function App() {
     setActiveAttempt(0)
     setRunState('done')
   }
+
+  useEffect(() => {
+    let active = true
+
+    const loadVisitorProfile = async () => {
+      const profile = await buildVisitorProfile()
+      if (active) {
+        setVisitorProfile(profile)
+      }
+    }
+
+    void loadVisitorProfile()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     if (hasAutoStarted) return
@@ -156,11 +181,14 @@ export function App() {
           </div>
         </section>
 
+        <VisitorProfile profile={visitorProfile} />
+
         <SummaryCards
           results={results}
           completedCount={completedCount}
           totalCount={totalCount}
           runState={runState}
+          visitorProfile={visitorProfile}
         />
 
         <section className="method card">

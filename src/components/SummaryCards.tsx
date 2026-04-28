@@ -1,5 +1,5 @@
 import { TARGETS } from '../config/targets'
-import type { ProbeResult, ProbeStatus } from '../types'
+import type { ProbeResult, ProbeStatus, VisitorProfile } from '../types'
 
 const STATUSES: Array<{ key: ProbeStatus; label: string }> = [
   { key: 'reachable', label: '顺畅' },
@@ -24,9 +24,10 @@ interface SummaryCardsProps {
   completedCount: number
   totalCount: number
   runState: 'idle' | 'running' | 'done'
+  visitorProfile: VisitorProfile
 }
 
-export function SummaryCards({ results, completedCount, totalCount, runState }: SummaryCardsProps) {
+export function SummaryCards({ results, completedCount, totalCount, runState, visitorProfile }: SummaryCardsProps) {
   const completion = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
   const reachableCount = results.filter((result) => result.status === 'reachable').length
   const coverage = `${completedCount}/${totalCount}`
@@ -76,6 +77,20 @@ export function SummaryCards({ results, completedCount, totalCount, runState }: 
           </article>
         )
       })}
+
+      <article className="summary-card card">
+        <span className="summary-card__label">访问者画像</span>
+        <strong>
+          {visitorProfile.status === 'ready'
+            ? '已识别'
+            : visitorProfile.status === 'partial'
+              ? '部分识别'
+              : visitorProfile.status === 'loading'
+                ? '识别中'
+                : '结果有限'}
+        </strong>
+        <p>{visitorProfile.summary ?? '正在尝试补充当前访问者的公网网络信息。'}</p>
+      </article>
 
       <article className="summary-card card">
         <span className="summary-card__label">分组数量</span>

@@ -8,6 +8,56 @@ export type ProbeSignal = 'load' | 'error' | 'opaque' | 'timeout'
 
 export type Confidence = 'high' | 'medium' | 'low'
 
+export type IpAddressKind = 'ipv4' | 'ipv6'
+
+export type VisitorProfileStatus = 'idle' | 'loading' | 'ready' | 'partial' | 'unavailable'
+
+export interface VisitorIpRecord {
+  family: IpAddressKind
+  address?: string
+  status: 'available' | 'unavailable' | 'inconclusive'
+  source: string
+  countryCode?: string
+  country?: string
+  region?: string
+  city?: string
+  isp?: string
+  org?: string
+  asn?: string
+  networkType?: string
+  confidence: Confidence
+  notes?: string
+}
+
+export interface VisitorProfile {
+  status: VisitorProfileStatus
+  ipv4?: VisitorIpRecord
+  ipv6?: VisitorIpRecord
+  hasIpv6Reachability: boolean | 'unknown'
+  fetchedAt?: string
+  dataSources: string[]
+  summary?: string
+}
+
+export interface IpAddressProvider {
+  key: string
+  label: string
+  family: IpAddressKind
+  endpoint: string
+  responseType: 'json' | 'text'
+  corsMode?: RequestMode
+  parser: 'ipify' | 'plain-text'
+}
+
+export interface IpIntelProvider {
+  key: string
+  label: string
+  endpoint: string
+  corsMode?: RequestMode
+  parser: 'ipapi-is' | 'ipwhois'
+  supportsFamilies: IpAddressKind[]
+}
+
 export interface Target {
   id: string
   label: string
