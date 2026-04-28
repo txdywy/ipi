@@ -18,12 +18,16 @@ export interface VisitorIpRecord {
   status: 'available' | 'unavailable' | 'inconclusive'
   source: string
   countryCode?: string
+  countryFlag?: string
   country?: string
   region?: string
   city?: string
+  timezone?: string
   isp?: string
   org?: string
   asn?: string
+  asnOrg?: string
+  carrier?: string
   networkType?: string
   confidence: Confidence
   notes?: string

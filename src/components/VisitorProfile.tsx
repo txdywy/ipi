@@ -14,7 +14,7 @@ const formatRecordHeadline = (record?: VisitorIpRecord) => {
 const formatRecordMeta = (record?: VisitorIpRecord) => {
   if (!record) return '等待查询'
 
-  const parts = [record.country, record.region, record.city, record.isp ?? record.org].filter(Boolean)
+  const parts = [record.region, record.city, record.networkType].filter(Boolean)
   if (parts.length > 0) return parts.join(' · ')
   return record.notes ?? '公开来源暂未补充更多信息。'
 }
@@ -32,6 +32,8 @@ const formatSourceText = (profile: VisitorProfile) => {
 }
 
 const formatSourceCount = (profile: VisitorProfile) => `${profile.dataSources.length} 个`
+
+const formatSourceChip = (profile: VisitorProfile) => `${profile.dataSources.length} 个来源`
 
 const formatProfileCoverage = (profile: VisitorProfile) => {
   if (profile.status === 'ready') return '双栈已补全'
@@ -53,35 +55,92 @@ const formatConfidence = (record?: VisitorIpRecord) => {
   return '低'
 }
 
-const formatNetworkDescriptor = (record?: VisitorIpRecord) => {
-  if (!record) return '公开来源未提供网络画像。'
+const formatCountryText = (record?: VisitorIpRecord) => {
+  if (!record) return '等待查询'
 
-  const parts = [record.networkType, record.org, record.asn ? `AS${record.asn}` : undefined].filter(Boolean)
-  if (parts.length > 0) return parts.join(' · ')
-  return record.notes ?? '公开来源未提供网络画像。'
+  const parts = [record.countryFlag, record.country].filter(Boolean)
+  if (parts.length > 0) return parts.join(' ')
+  return '待补充'
+}
+
+const formatDetailValue = (value?: string, fallback = '待补充') => value ?? fallback
+
+interface VisitorIpCardProps {
+  label: 'IPv4' | 'IPv6'
+  record?: VisitorIpRecord
+}
+
+function VisitorIpCard({ label, record }: VisitorIpCardProps) {
+  return (
+    <article className="visitor-ip-card">
+      <div className="visitor-ip-card__header">
+        <div>
+          <span className="summary-card__label">{label}</span>
+          <strong>{formatRecordHeadline(record)}</strong>
+        </div>
+        <div className="visitor-ip-card__confidence">
+          <span className="summary-card__label">可信度</span>
+          <strong>{formatConfidence(record)}</strong>
+        </div>
+      </div>
+
+      <p className="visitor-ip-card__country">{formatCountryText(record)}</p>
+      <p>{formatRecordMeta(record)}</p>
+
+      <dl className="visitor-ip-card__facts">
+        <div>
+          <dt>ASN</dt>
+          <dd>{formatDetailValue(record?.asn)}</dd>
+        </div>
+        <div>
+          <dt>组织</dt>
+          <dd>{formatDetailValue(record?.asnOrg ?? record?.org)}</dd>
+        </div>
+        <div>
+          <dt>ISP</dt>
+          <dd>{formatDetailValue(record?.isp)}</dd>
+        </div>
+        <div>
+          <dt>Carrier</dt>
+          <dd>{formatDetailValue(record?.carrier)}</dd>
+        </div>
+        <div>
+          <dt>来源</dt>
+          <dd>{formatDetailValue(record?.source, '等待查询')}</dd>
+        </div>
+      </dl>
+    </article>
+  )
 }
 
 export function VisitorProfile({ profile }: VisitorProfileProps) {
   return (
     <section className="visitor-profile card">
-      <div className="visitor-profile__intro">
-        <p className="eyebrow">VISITOR PROFILE</p>
-        <h2>当前访问者公网身份</h2>
-        <p>
-          这里展示浏览器侧可直接获取的公网 IP 与基础归属信息。结果来自公开数据源，可能受 IPv6 可用性、接口返回字段与地区策略影响。
-        </p>
-      </div>
-
-      <div className="visitor-profile__summary">
-        <div className="visitor-profile__summary-card visitor-profile__summary-card--hero">
-          <span className="summary-card__label">当前状态</span>
-          <strong>{formatStatusLabel(profile.status)}</strong>
-          <p>{profile.summary ?? '正在尝试识别当前访问者的公网网络信息。'}</p>
+      <div className="visitor-profile__hero">
+        <div className="visitor-profile__hero-copy">
+          <p className="eyebrow">VISITOR PROFILE</p>
+          <h2>当前访问者公网身份</h2>
+          <p className="visitor-profile__hero-summary">
+            {profile.summary ?? '正在尝试识别当前访问者的公网网络信息。'}
+          </p>
+          <p className="visitor-profile__hero-note">
+            这里展示浏览器侧可直接获取的公网 IP 与基础归属信息。结果来自公开数据源，可能受 IPv6 可用性、接口返回字段与地区策略影响。
+          </p>
         </div>
-        <div className="visitor-profile__summary-card">
-          <span className="summary-card__label">IPv6 观测</span>
-          <strong>{ipv6StatusText(profile.hasIpv6Reachability)}</strong>
-          <p>{formatSourceText(profile)}</p>
+
+        <div className="visitor-profile__chips">
+          <div className="visitor-profile__chip">
+            <span className="summary-card__label">当前状态</span>
+            <strong>{formatStatusLabel(profile.status)}</strong>
+          </div>
+          <div className="visitor-profile__chip">
+            <span className="summary-card__label">IPv6 观测</span>
+            <strong>{ipv6StatusText(profile.hasIpv6Reachability)}</strong>
+          </div>
+          <div className="visitor-profile__chip">
+            <span className="summary-card__label">数据来源</span>
+            <strong>{formatSourceChip(profile)}</strong>
+          </div>
         </div>
       </div>
 
@@ -104,45 +163,11 @@ export function VisitorProfile({ profile }: VisitorProfileProps) {
         </article>
       </div>
 
+      <p className="visitor-profile__source-note">{formatSourceText(profile)}</p>
+
       <div className="visitor-profile__grid">
-        <article className="visitor-ip-card">
-          <span className="summary-card__label">IPv4</span>
-          <strong>{formatRecordHeadline(profile.ipv4)}</strong>
-          <p>{formatRecordMeta(profile.ipv4)}</p>
-          <dl className="visitor-ip-card__meta">
-            <div>
-              <dt>来源</dt>
-              <dd>{profile.ipv4?.source ?? '等待查询'}</dd>
-            </div>
-            <div>
-              <dt>可信度</dt>
-              <dd>{formatConfidence(profile.ipv4)}</dd>
-            </div>
-            <div>
-              <dt>网络画像</dt>
-              <dd>{formatNetworkDescriptor(profile.ipv4)}</dd>
-            </div>
-          </dl>
-        </article>
-        <article className="visitor-ip-card">
-          <span className="summary-card__label">IPv6</span>
-          <strong>{formatRecordHeadline(profile.ipv6)}</strong>
-          <p>{formatRecordMeta(profile.ipv6)}</p>
-          <dl className="visitor-ip-card__meta">
-            <div>
-              <dt>来源</dt>
-              <dd>{profile.ipv6?.source ?? '等待查询'}</dd>
-            </div>
-            <div>
-              <dt>可信度</dt>
-              <dd>{formatConfidence(profile.ipv6)}</dd>
-            </div>
-            <div>
-              <dt>网络画像</dt>
-              <dd>{formatNetworkDescriptor(profile.ipv6)}</dd>
-            </div>
-          </dl>
-        </article>
+        <VisitorIpCard label="IPv4" record={profile.ipv4} />
+        <VisitorIpCard label="IPv6" record={profile.ipv6} />
       </div>
     </section>
   )
