@@ -75,6 +75,8 @@ img {
   filter: blur(100px);
   opacity: 0.42;
   pointer-events: none;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .shell__glow--left {
@@ -655,6 +657,7 @@ img {
     border-color 0.18s ease,
     background 0.18s ease,
     box-shadow 0.18s ease;
+  contain: content;
 }
 
 .result-row::after {
@@ -831,7 +834,8 @@ img {
   border-radius: inherit;
   background: linear-gradient(90deg, rgba(116, 221, 255, 0.5), rgba(126, 137, 255, 0.95));
   box-shadow: 0 0 24px rgba(116, 221, 255, 0.28);
-  transition: width 0.45s ease;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width;
 }
 
 .progress-bar--reachable {
@@ -888,6 +892,21 @@ img {
   }
   50% {
     opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }
 
@@ -967,4 +986,3 @@ img {
     grid-template-columns: 1fr;
   }
 }
-

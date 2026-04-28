@@ -58,7 +58,7 @@ export interface IpIntelProvider {
   label: string
   endpoint: string
   corsMode?: RequestMode
-  parser: 'ipapi-is' | 'ipwhois'
+  parser: 'ipapi-is' | 'ipapi-co' | 'ip-sb' | 'ipwhois'
   supportsFamilies: IpAddressKind[]
 }
 

@@ -1,5 +1,5 @@
 import { IP_INTEL_PROVIDERS } from '../../config/ipProviders'
-import type { VisitorIpRecord } from '../../types'
+import type { IpIntelProvider, VisitorIpRecord } from '../../types'
 import { mergeVisitorIpRecord } from './mergeVisitorIpRecord'
 
 interface IpApiIsResponse {
@@ -18,11 +18,37 @@ interface IpApiIsResponse {
   asn?: {
     asn?: number | string
     org?: string
+    type?: string
   }
   connection?: {
     isp?: string
     org?: string
   }
+}
+
+interface IpApiCoResponse {
+  ip?: string
+  city?: string
+  region?: string
+  country_name?: string
+  country_code?: string
+  timezone?: string
+  org?: string
+  asn?: string
+  version?: string
+}
+
+interface IpSbResponse {
+  ip?: string
+  country?: string
+  country_code?: string
+  region?: string
+  city?: string
+  timezone?: string
+  isp?: string
+  organization?: string
+  asn_organization?: string
+  asn?: number | string
 }
 
 interface IpWhoIsResponse {
@@ -47,6 +73,38 @@ interface IpWhoIsResponse {
   message?: string
 }
 
+const buildProviderUrl = (provider: IpIntelProvider, address: string) => {
+  const encodedAddress = encodeURIComponent(address)
+
+  if (provider.parser === 'ipapi-is') {
+    return `${provider.endpoint}?q=${encodedAddress}`
+  }
+
+  if (provider.parser === 'ipapi-co') {
+    return `${provider.endpoint}${encodedAddress}/json/`
+  }
+
+  return `${provider.endpoint}${encodedAddress}`
+}
+
+const PROVIDER_TIMEOUT_MS = 4000
+
+const fetchProvider = async (provider: IpIntelProvider, address: string) => {
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS)
+
+  try {
+    return await fetch(buildProviderUrl(provider, address), {
+      method: 'GET',
+      cache: 'no-store',
+      mode: provider.corsMode ?? 'cors',
+      signal: controller.signal,
+    })
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 const parseIpApiIs = async (record: VisitorIpRecord, response: Response) => {
   const data = (await response.json()) as IpApiIsResponse
 
@@ -62,8 +120,44 @@ const parseIpApiIs = async (record: VisitorIpRecord, response: Response) => {
     asn: data.asn?.asn ? `AS${data.asn.asn}` : undefined,
     asnOrg: data.asn?.org,
     carrier: data.company?.name,
-    networkType: data.company?.type,
+    networkType: data.company?.type ?? data.asn?.type,
     confidence: 'high',
+  })
+}
+
+const parseIpApiCo = async (record: VisitorIpRecord, response: Response) => {
+  const data = (await response.json()) as IpApiCoResponse
+
+  return mergeVisitorIpRecord(record, {
+    status: 'available',
+    country: data.country_name,
+    countryCode: data.country_code,
+    region: data.region,
+    city: data.city,
+    timezone: data.timezone,
+    org: data.org,
+    asn: data.asn,
+    networkType: data.version,
+    confidence: 'high',
+  })
+}
+
+const parseIpSb = async (record: VisitorIpRecord, response: Response) => {
+  const data = (await response.json()) as IpSbResponse
+
+  return mergeVisitorIpRecord(record, {
+    status: 'available',
+    country: data.country,
+    countryCode: data.country_code,
+    region: data.region,
+    city: data.city,
+    timezone: data.timezone,
+    isp: data.isp,
+    org: data.organization,
+    asn: data.asn ? `AS${data.asn}` : undefined,
+    asnOrg: data.asn_organization,
+    carrier: data.organization,
+    confidence: 'medium',
   })
 }
 
@@ -105,11 +199,7 @@ export const fetchIpIntel = async (record: VisitorIpRecord): Promise<VisitorIpRe
 
   for (const provider of providers) {
     try {
-      const response = await fetch(`${provider.endpoint}${record.address}`, {
-        method: 'GET',
-        cache: 'no-store',
-        mode: provider.corsMode ?? 'cors',
-      })
+      const response = await fetchProvider(provider, record.address)
 
       if (!response.ok) {
         continue
@@ -120,6 +210,16 @@ export const fetchIpIntel = async (record: VisitorIpRecord): Promise<VisitorIpRe
 
       if (provider.parser === 'ipapi-is') {
         mergedRecord = await parseIpApiIs(nextRecord, response)
+        continue
+      }
+
+      if (provider.parser === 'ipapi-co') {
+        mergedRecord = await parseIpApiCo(nextRecord, response)
+        continue
+      }
+
+      if (provider.parser === 'ip-sb') {
+        mergedRecord = await parseIpSb(nextRecord, response)
         continue
       }
 

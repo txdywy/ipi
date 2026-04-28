@@ -31,6 +31,22 @@ export const IP_INTEL_PROVIDERS: IpIntelProvider[] = [
     supportsFamilies: ['ipv4', 'ipv6'],
   },
   {
+    key: 'ipapi-co',
+    label: 'ipapi.co',
+    endpoint: 'https://ipapi.co/',
+    corsMode: 'cors',
+    parser: 'ipapi-co',
+    supportsFamilies: ['ipv4', 'ipv6'],
+  },
+  {
+    key: 'ip-sb',
+    label: 'api.ip.sb',
+    endpoint: 'https://api.ip.sb/geoip/',
+    corsMode: 'cors',
+    parser: 'ip-sb',
+    supportsFamilies: ['ipv4', 'ipv6'],
+  },
+  {
     key: 'ipwhois-app',
     label: 'ipwho.is',
     endpoint: 'https://ipwho.is/',
