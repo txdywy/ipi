@@ -56,31 +56,34 @@ export function ResultRow({ target, result, isRunning, isActive }: ResultRowProp
   const reason = isActive
     ? '当前目标正在进行多次探测，等待浏览器汇总本轮结果。'
     : result?.reason ?? target.emphasis
-  const latency = typeof result?.latencyMs === 'number' ? `平均耗时：${result.latencyMs} ms` : '平均耗时：待定'
+  const latency = typeof result?.latencyMs === 'number' ? `${result.latencyMs} ms` : '待定'
   const progressValue = getPerformanceValue(result)
   const fallbackLetters = useMemo(() => target.label.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase() || 'IP', [target.label])
   const attemptCount = result?.attemptCount ?? 0
   const successRate = result ? `${result.successRate}%` : '等待中'
   const confidence = result?.confidence ?? '等待中'
+  const usesBrandLogo = target.logoUrl.startsWith('/brand-logos/')
 
   return (
     <article className={`result-row${isActive ? ' result-row--active' : ''}`}>
       <div className="result-row__topline">
         <div className="result-row__identity">
-          {logoFailed ? (
-            <span className="result-row__logo-fallback" aria-label={`${target.label} fallback logo`}>
-              {fallbackLetters}
-            </span>
-          ) : (
-            <img
-              className="result-row__logo"
-              src={target.logoUrl}
-              alt={`${target.label} logo`}
-              loading="lazy"
-              onError={() => setLogoFailed(true)}
-            />
-          )}
-          <div>
+          <span className={`result-row__logo-shell${usesBrandLogo ? ' result-row__logo-shell--brand' : ' result-row__logo-shell--favicon'}`}>
+            {logoFailed ? (
+              <span className="result-row__logo-fallback" aria-label={`${target.label} fallback logo`}>
+                {fallbackLetters}
+              </span>
+            ) : (
+              <img
+                className={`result-row__logo${usesBrandLogo ? ' result-row__logo--brand' : ' result-row__logo--favicon'}`}
+                src={target.logoUrl}
+                alt={`${target.label} logo`}
+                loading="lazy"
+                onError={() => setLogoFailed(true)}
+              />
+            )}
+          </span>
+          <div className="result-row__copy">
             <div className="result-row__title-wrap">
               <h3>{target.label}</h3>
               <span className="result-row__location">{target.location}</span>
@@ -91,12 +94,20 @@ export function ResultRow({ target, result, isRunning, isActive }: ResultRowProp
         <span className={statusClassName(status)}>{STATUS_COPY[status]}</span>
       </div>
 
-      <div className="result-row__tags">
-        {target.tags.map((tag) => (
-          <span key={tag} className="chip">
-            {tag}
-          </span>
-        ))}
+      <div className="result-row__subline">
+        <div className="result-row__tags">
+          {target.tags.map((tag) => (
+            <span key={tag} className="chip">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <div className="result-row__meta">
+          <span className="result-row__meta-pill">{attemptCount} 次探测</span>
+          <span className="result-row__meta-pill">成功率 {successRate}</span>
+          <span className="result-row__meta-pill">{confidence} 置信度</span>
+          <span className="result-row__meta-pill">平均 {latency}</span>
+        </div>
       </div>
 
       <div className="result-row__meter">
@@ -104,16 +115,9 @@ export function ResultRow({ target, result, isRunning, isActive }: ResultRowProp
           <span>性能等级</span>
           <strong>{getPerformanceLabel(result)}</strong>
         </div>
-        <div className="progress-track">
+        <div className="progress-track progress-track--result-row">
           <span className={`progress-bar progress-bar--${status}`} style={{ width: `${progressValue}%` }} />
         </div>
-      </div>
-
-      <div className="result-row__meta">
-        <span>探测次数：{attemptCount}</span>
-        <span>成功率：{successRate}</span>
-        <span>置信度：{confidence}</span>
-        <span>{latency}</span>
       </div>
 
       {isRunning && !result && !isActive ? <div className="result-row__waiting">等待轮到当前目标…</div> : null}

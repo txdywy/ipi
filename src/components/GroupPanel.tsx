@@ -13,7 +13,7 @@ interface GroupPanelProps {
   description: string
   items: GroupPanelItem[]
   isRunning: boolean
-  activeTargetId: string | null
+  activeTargetIds: string[]
 }
 
 export function GroupPanel({
@@ -23,7 +23,7 @@ export function GroupPanel({
   description,
   items,
   isRunning,
-  activeTargetId,
+  activeTargetIds,
 }: GroupPanelProps) {
   const resolvedCount = items.filter((item) => item.result).length
   const completion = Math.round((resolvedCount / items.length) * 100)
@@ -55,7 +55,7 @@ export function GroupPanel({
             target={item.target}
             result={item.result}
             isRunning={isRunning}
-            isActive={activeTargetId === item.target.id}
+            isActive={activeTargetIds.includes(item.target.id)}
           />
         ))}
       </div>

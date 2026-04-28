@@ -3,3 +3,7 @@ dist
 coverage
 .vscode
 .DS_Store
+.serena/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
