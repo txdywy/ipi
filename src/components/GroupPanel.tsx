@@ -26,7 +26,7 @@ export function GroupPanel({
   activeTargetIds,
 }: GroupPanelProps) {
   const resolvedCount = items.filter((item) => item.result).length
-  const completion = Math.round((resolvedCount / items.length) * 100)
+  const completion = items.length === 0 ? 0 : Math.round((resolvedCount / items.length) * 100)
 
   return (
     <section className="group-panel card">

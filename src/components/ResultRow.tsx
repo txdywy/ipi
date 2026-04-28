@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, memo } from 'react'
 import type { ProbeResult, ProbeStatus, Target } from '../types'
 
 const STATUS_COPY: Record<ProbeStatus, string> = {
@@ -50,7 +50,7 @@ interface ResultRowProps {
   isActive: boolean
 }
 
-export function ResultRow({ target, result, isRunning, isActive }: ResultRowProps) {
+export const ResultRow = memo(function ResultRow({ target, result, isRunning, isActive }: ResultRowProps) {
   const [logoFailed, setLogoFailed] = useState(false)
   const status = isActive ? 'running' : result?.status ?? 'idle'
   const reason = isActive
@@ -115,7 +115,7 @@ export function ResultRow({ target, result, isRunning, isActive }: ResultRowProp
           <span>性能等级</span>
           <strong>{getPerformanceLabel(result)}</strong>
         </div>
-        <div className="progress-track progress-track--result-row">
+        <div className="progress-track">
           <span className={`progress-bar progress-bar--${status}`} style={{ width: `${progressValue}%` }} />
         </div>
       </div>
@@ -123,4 +123,4 @@ export function ResultRow({ target, result, isRunning, isActive }: ResultRowProp
       {isRunning && !result && !isActive ? <div className="result-row__waiting">等待轮到当前目标…</div> : null}
     </article>
   )
-}
+})

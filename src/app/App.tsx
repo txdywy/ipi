@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { GroupPanel } from '../components/GroupPanel'
 import { SummaryCards } from '../components/SummaryCards'
 import { VisitorProfile } from '../components/VisitorProfile'
@@ -8,8 +8,6 @@ import { ATTEMPTS_PER_TARGET, runAllProbes } from '../lib/probes/probeRunner'
 import type { ProbeResult, VisitorProfile as VisitorProfileData } from '../types'
 
 type RunState = 'idle' | 'running' | 'done'
-
-let hasAutoStarted = false
 
 const formatTime = (value: Date | null) => {
   if (!value) return '尚未检测'
@@ -27,7 +25,6 @@ export function App() {
   const [activeTargetIds, setActiveTargetIds] = useState<string[]>([])
   const [activeAttemptTargetId, setActiveAttemptTargetId] = useState<string | null>(null)
   const [activeAttempt, setActiveAttempt] = useState(0)
-  const [completedCount, setCompletedCount] = useState(0)
   const [runCount, setRunCount] = useState(0)
   const [visitorProfile, setVisitorProfile] = useState<VisitorProfileData>({
     status: 'loading',
@@ -36,7 +33,20 @@ export function App() {
     summary: '正在尝试识别当前访问者的公网网络信息。',
   })
 
+  const hasAutoStarted = useRef(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
   const totalCount = TARGETS.length
+  const completedCount = results.length
+  const completionPercent = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
+
+  const resultsMap = useMemo(() => {
+    const map = new Map<string, ProbeResult>()
+    for (const r of results) {
+      map.set(r.target.id, r)
+    }
+    return map
+  }, [results])
 
   const grouped = useMemo(
     () =>
@@ -44,74 +54,89 @@ export function App() {
         ...group,
         items: TARGETS.filter((target) => target.group === group.key).map((target) => ({
           target,
-          result: results.find((result) => result.target.id === target.id),
+          result: resultsMap.get(target.id),
         })),
       })),
-    [results],
+    [resultsMap],
   )
 
-  const activeAttemptTarget =
-    TARGETS.find((target) => target.id === activeAttemptTargetId && activeTargetIds.includes(target.id)) ?? null
+  const activeAttemptTarget = useMemo(
+    () => TARGETS.find((target) => target.id === activeAttemptTargetId && activeTargetIds.includes(target.id)) ?? null,
+    [activeAttemptTargetId, activeTargetIds],
+  )
 
-  const startCheckup = async () => {
-    if (runState === 'running') return
+  const startCheckup = useCallback(async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
 
     setRunState('running')
     setResults([])
-    setCompletedCount(0)
     setActiveTargetIds([])
     setActiveAttemptTargetId(null)
     setActiveAttempt(0)
     setRunCount((value) => value + 1)
 
-    const nextResults = await runAllProbes({
-      onTargetStart: (target) => {
-        setActiveTargetIds((current) => (current.includes(target.id) ? current : [...current, target.id]))
-        setActiveAttemptTargetId(target.id)
-        setActiveAttempt(0)
-      },
-      onTargetAttempt: (target, attemptNumber) => {
-        setActiveAttemptTargetId(target.id)
-        setActiveAttempt(attemptNumber)
-      },
-      onTargetFinish: (result, completed) => {
-        setResults((current) => [...current, result])
-        setCompletedCount(completed)
-        setActiveTargetIds((current) => current.filter((targetId) => targetId !== result.target.id))
-      },
-    })
+    try {
+      const nextResults = await runAllProbes({
+        signal: controller.signal,
+        onTargetStart: (target) => {
+          setActiveTargetIds((current) => (current.includes(target.id) ? current : [...current, target.id]))
+          setActiveAttemptTargetId(target.id)
+          setActiveAttempt(0)
+        },
+        onTargetAttempt: (target, attemptNumber) => {
+          setActiveAttemptTargetId(target.id)
+          setActiveAttempt(attemptNumber)
+        },
+        onTargetFinish: (result) => {
+          setResults((current) => {
+            const next = [...current]
+            const idx = next.findIndex(r => r.target.id === result.target.id)
+            if (idx > -1) next[idx] = result
+            else next.push(result)
+            return next
+          })
+          setActiveTargetIds((current) => current.filter((targetId) => targetId !== result.target.id))
+        },
+      })
 
-    setResults(nextResults)
-    setCompletedCount(nextResults.length)
-    setLastRunAt(new Date())
-    setActiveTargetIds([])
-    setActiveAttemptTargetId(null)
-    setActiveAttempt(0)
-    setRunState('done')
-  }
+      if (!controller.signal.aborted) {
+        setResults(nextResults)
+        setLastRunAt(new Date())
+        setRunState('done')
+        setActiveTargetIds([])
+        setActiveAttemptTargetId(null)
+        setActiveAttempt(0)
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      } else {
+        setRunState('idle')
+        throw error
+      }
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
-
-    const loadVisitorProfile = async () => {
-      const profile = await buildVisitorProfile()
-      if (active) {
-        setVisitorProfile(profile)
-      }
-    }
-
-    void loadVisitorProfile()
-
+    void buildVisitorProfile((profile) => {
+      if (active) setVisitorProfile(profile)
+    })
     return () => {
       active = false
     }
   }, [])
 
   useEffect(() => {
-    if (hasAutoStarted) return
-    hasAutoStarted = true
+    if (hasAutoStarted.current) return
+    hasAutoStarted.current = true
     void startCheckup()
-  }, [])
+  }, [startCheckup])
 
   const statusText =
     runState === 'idle'
@@ -135,7 +160,7 @@ export function App() {
             </p>
             <div className="hero__chips">
               <span className="hero-chip">纯前端采样</span>
-              <span className="hero-chip">每目标 5 次探测</span>
+              <span className="hero-chip">并发探测模式</span>
               <span className="hero-chip">PC / Mobile 自适应</span>
             </div>
           </div>
@@ -150,7 +175,7 @@ export function App() {
                     ? `正在并发检测 ${activeTargetIds.length} 个目标，当前显示 ${activeAttemptTarget.label} 的第 ${activeAttempt || 1}/${ATTEMPTS_PER_TARGET} 次探测，汇总结果会按目标逐项落入页面。`
                     : activeTargetIds.length > 0
                       ? `正在并发检测 ${activeTargetIds.length} 个目标，汇总结果会按目标逐项落入页面。`
-                      : '正在准备第一项目标的多次探测。'
+                      : '正在并发执行探测任务，汇总结果会按目标逐项落入页面。'
                   : '结果会保留为当前网络环境的一次即时快照。'}
               </p>
             </div>
@@ -177,10 +202,10 @@ export function App() {
             <div className="hero__progress-block">
               <div className="hero__progress-meta">
                 <span>全局测试进度</span>
-                <strong>{Math.round((completedCount / totalCount) * 100)}%</strong>
+                <strong>{completionPercent}%</strong>
               </div>
               <div className="progress-track progress-track--hero">
-                <span className="progress-bar progress-bar--group" style={{ width: `${Math.round((completedCount / totalCount) * 100)}%` }} />
+                <span className="progress-bar progress-bar--group" style={{ width: `${completionPercent}%` }} />
               </div>
             </div>
 

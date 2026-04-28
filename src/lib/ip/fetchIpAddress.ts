@@ -31,12 +31,18 @@ export const fetchIpAddress = async (family: IpAddressKind): Promise<VisitorIpRe
     return fallbackRecord(family, 'config', 'low', '当前未配置可用的地址来源。')
   }
 
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 5000)
+
   try {
     const response = await fetch(provider.endpoint, {
       method: 'GET',
       cache: 'no-store',
       mode: provider.corsMode ?? 'cors',
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       return fallbackRecord(family, provider.label, 'low', `地址接口返回 ${response.status}。`, 'inconclusive')
@@ -56,7 +62,9 @@ export const fetchIpAddress = async (family: IpAddressKind): Promise<VisitorIpRe
       confidence: 'high',
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown address lookup error'
+    clearTimeout(timeoutId)
+    const isTimeout = error instanceof DOMException && error.name === 'AbortError'
+    const message = isTimeout ? '请求超时 (5s)' : (error instanceof Error ? error.message : 'Unknown address lookup error')
     return fallbackRecord(family, provider.label, family === 'ipv6' ? 'low' : 'medium', message, 'inconclusive')
   }
 }

@@ -2,78 +2,113 @@ import type { ProbeRawResult, Target } from '../../types'
 
 const measure = async (
   target: Target,
-  runner: () => Promise<Pick<ProbeRawResult, 'signal' | 'ok' | 'detail'>>,
+  runner: (signal: AbortSignal) => Promise<Pick<ProbeRawResult, 'signal' | 'ok' | 'detail'>>,
 ): Promise<ProbeRawResult> => {
   const startedAt = performance.now()
-  const timeout = new Promise<ProbeRawResult>((resolve) => {
-    window.setTimeout(() => {
-      resolve({
+  const controller = new AbortController()
+
+  const timeoutId = window.setTimeout(() => {
+    controller.abort()
+  }, target.timeoutMs)
+
+  try {
+    const value = await runner(controller.signal)
+    clearTimeout(timeoutId)
+    return {
+      targetId: target.id,
+      durationMs: performance.now() - startedAt,
+      ...value,
+    }
+  } catch (error: unknown) {
+    clearTimeout(timeoutId)
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      return {
         targetId: target.id,
         signal: 'timeout',
         ok: false,
         durationMs: performance.now() - startedAt,
         detail: 'Probe timed out',
-      })
-    }, target.timeoutMs)
-  })
-
-  const result = new Promise<ProbeRawResult>((resolve) => {
-    runner()
-      .then((value) => {
-        resolve({
-          targetId: target.id,
-          durationMs: performance.now() - startedAt,
-          ...value,
-        })
-      })
-      .catch((error: unknown) => {
-        resolve({
-          targetId: target.id,
-          signal: 'error',
-          ok: false,
-          durationMs: performance.now() - startedAt,
-          detail: error instanceof Error ? error.message : 'Unknown probe failure',
-        })
-      })
-  })
-
-  return Promise.race([result, timeout])
+      }
+    }
+    return {
+      targetId: target.id,
+      signal: 'error',
+      ok: false,
+      durationMs: performance.now() - startedAt,
+      detail: error instanceof Error ? error.message : 'Unknown probe failure',
+    }
+  }
 }
 
 const imageProbe = (target: Target) =>
-  measure(target, () =>
+  measure(target, (signal) =>
     new Promise((resolve, reject) => {
       const image = new Image()
       image.referrerPolicy = 'no-referrer'
-      image.onload = () => resolve({ signal: 'load', ok: true })
-      image.onerror = () => reject(new Error('Image load failed'))
-      image.src = `${target.url}${target.url.includes('?') ? '&' : '?'}_t=${Date.now()}`
+
+      const cleanup = () => {
+        image.onload = image.onerror = null
+        signal.removeEventListener('abort', onAbort)
+      }
+
+      const onAbort = () => {
+        cleanup()
+        image.src = '' // Stop loading
+        reject(new DOMException('Aborted', 'AbortError'))
+      }
+
+      signal.addEventListener('abort', onAbort)
+
+      image.onload = () => {
+        cleanup()
+        resolve({ signal: 'load', ok: true })
+      }
+      image.onerror = () => {
+        cleanup()
+        reject(new Error('Image load failed'))
+      }
+      image.src = `${target.url}${target.url.includes('?') ? '&' : '?'}_t=${Math.random().toString(36).slice(2)}`
     }),
   )
 
 const scriptProbe = (target: Target) =>
-  measure(target, () =>
+  measure(target, (signal) =>
     new Promise((resolve, reject) => {
       const script = document.createElement('script')
       script.async = true
-      script.src = `${target.url}${target.url.includes('?') ? '&' : '?'}_t=${Date.now()}`
+
+      const cleanup = () => {
+        script.onload = script.onerror = null
+        if (script.parentNode) script.remove()
+        signal.removeEventListener('abort', onAbort)
+      }
+
+      const onAbort = () => {
+        cleanup()
+        reject(new DOMException('Aborted', 'AbortError'))
+      }
+
+      signal.addEventListener('abort', onAbort)
+
       script.onload = () => {
-        script.remove()
+        cleanup()
         resolve({ signal: 'load', ok: true })
       }
       script.onerror = () => {
-        script.remove()
+        cleanup()
         reject(new Error('Script load failed'))
       }
+      script.src = `${target.url}${target.url.includes('?') ? '&' : '?'}_t=${Math.random().toString(36).slice(2)}`
       document.head.appendChild(script)
     }),
   )
 
 const fetchProbe = (target: Target) =>
-  measure(target, async () => {
+  measure(target, async (signal) => {
     const response = await fetch(target.url, {
       mode: 'no-cors',
       cache: 'no-store',
+      signal,
     })
 
     if (response.type === 'opaque') {
