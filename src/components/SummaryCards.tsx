@@ -58,7 +58,7 @@ export function SummaryCards({ results, completedCount, totalCount, runState, vi
       <article className="summary-card card">
         <span className="summary-card__label">平均成功率</span>
         <strong>{averageSuccessRate(results)}</strong>
-        <p>基于每个目标 5 次探测的成功占比汇总。</p>
+        <p>基于每个目标 3 次探测的成功占比汇总。</p>
       </article>
 
       <article className="summary-card card">
@@ -95,7 +95,7 @@ export function SummaryCards({ results, completedCount, totalCount, runState, vi
       <article className="summary-card card">
         <span className="summary-card__label">分组数量</span>
         <strong>{new Set(TARGETS.map((target) => target.group)).size}</strong>
-        <p>当前覆盖中国大陆、国际主流与困难目标三组。</p>
+        <p>当前覆盖中国大陆、港澳台、国际主流、游戏娱乐与困难目标。</p>
       </article>
     </section>
   )

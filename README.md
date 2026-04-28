@@ -53,7 +53,7 @@ This runs the Vitest suite, including classifier logic and visitor profile data-
 ## How it works
 
 - The app auto-starts a browser-side checkup when the page loads.
-- Each configured target is probed 5 times and then classified into statuses such as `reachable`, `slow`, `challenging`, or `inconclusive`.
+- Each configured target is probed 3 times with limited concurrency and then classified into statuses such as `reachable`, `slow`, `challenging`, or `inconclusive`.
 - Targets are grouped into three sections: 中国大陆, 国际主流, and 困难目标.
 - A separate visitor profile panel attempts to resolve the current visitor's public IPv4 and IPv6 addresses and enrich them with geolocation and network metadata.
 
@@ -61,11 +61,13 @@ This runs the Vitest suite, including classifier logic and visitor profile data-
 
 ### Target coverage
 
-The current dashboard covers 23 web targets across three groups:
+The current dashboard covers 153 web targets across five groups:
 
-- 中国大陆: Baidu, Tencent, Zhihu, Bilibili, JD, Taobao, Weibo, Xiaohongshu
-- 国际主流: GitHub, Wikipedia, Cloudflare, OpenAI, AWS, Apple, Microsoft, Stack Overflow
-- 困难目标: Claude, Discord, Netflix, Google, YouTube, Telegram, X, Reddit
+- 中国大陆: search, social, ecommerce, short-video services, universities, research institutes, and public education organizations.
+- 港澳台: high-profile universities and regional research institutions in Hong Kong, Macau, and Taiwan.
+- 国际主流: developer ecosystems, package registries, CDN providers, cloud platforms, Microsoft and Google services, Japan/Korea portals, major news/media sites, and globally recognized academic organizations.
+- 游戏娱乐: domestic and international game stores, publishers, console networks, game communities, and live-streaming services.
+- 困难目标: AI assistants, Google Scholar and account surfaces, Meta/TikTok/social video, messaging, streaming, and other higher-friction international services.
 
 ### Visitor identity panel
 
@@ -74,7 +76,9 @@ The visitor profile flow uses browser fetch requests against these public provid
 - `ipify IPv4`
 - `ipify IPv6`
 - `ipapi.is`
-- `ipwho.is`
+- `ipapi.co`
+- `FreeIPAPI`
+- `api.ip.sb`
 
 The UI reports IPv4 and IPv6 availability, inferred network metadata, source count, and a short summary string built from the first available record.
 

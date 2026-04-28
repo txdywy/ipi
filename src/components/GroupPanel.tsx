@@ -14,6 +14,7 @@ interface GroupPanelProps {
   items: GroupPanelItem[]
   isRunning: boolean
   activeTargetIds: string[]
+  activeAttemptsByTarget: Record<string, number>
 }
 
 export function GroupPanel({
@@ -24,6 +25,7 @@ export function GroupPanel({
   items,
   isRunning,
   activeTargetIds,
+  activeAttemptsByTarget,
 }: GroupPanelProps) {
   const resolvedCount = items.filter((item) => item.result).length
   const completion = items.length === 0 ? 0 : Math.round((resolvedCount / items.length) * 100)
@@ -56,6 +58,7 @@ export function GroupPanel({
             result={item.result}
             isRunning={isRunning}
             isActive={activeTargetIds.includes(item.target.id)}
+            activeAttempt={activeAttemptsByTarget[item.target.id] ?? 0}
           />
         ))}
       </div>

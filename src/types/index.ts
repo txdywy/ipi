@@ -1,4 +1,4 @@
-export type GroupKey = 'mainland' | 'global' | 'challenge'
+export type GroupKey = 'mainland' | 'hmt' | 'global' | 'gaming' | 'challenge'
 
 export type ProbeType = 'image' | 'script' | 'fetch'
 
@@ -58,7 +58,7 @@ export interface IpIntelProvider {
   label: string
   endpoint: string
   corsMode?: RequestMode
-  parser: 'ipapi-is' | 'ipapi-co' | 'ip-sb' | 'ip-api' | 'ipwhois'
+  parser: 'ipapi-is' | 'ipapi-co' | 'ip-sb' | 'freeipapi' | 'ipwhois'
   supportsFamilies: IpAddressKind[]
 }
 

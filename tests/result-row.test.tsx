@@ -42,6 +42,7 @@ describe('ResultRow', () => {
         result={result}
         isRunning={false}
         isActive={false}
+        activeAttempt={0}
       />,
     )
 

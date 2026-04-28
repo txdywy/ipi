@@ -48,9 +48,10 @@ interface ResultRowProps {
   result?: ProbeResult
   isRunning: boolean
   isActive: boolean
+  activeAttempt: number
 }
 
-export const ResultRow = memo(function ResultRow({ target, result, isRunning, isActive }: ResultRowProps) {
+export const ResultRow = memo(function ResultRow({ target, result, isRunning, isActive, activeAttempt }: ResultRowProps) {
   const [logoFailed, setLogoFailed] = useState(false)
   const status = isActive ? 'running' : result?.status ?? 'idle'
   const reason = isActive
@@ -63,6 +64,8 @@ export const ResultRow = memo(function ResultRow({ target, result, isRunning, is
   const successRate = result ? `${result.successRate}%` : '等待中'
   const confidence = result?.confidence ?? '等待中'
   const usesBrandLogo = target.logoUrl.startsWith('/brand-logos/')
+  const attemptLabel = isActive ? `${activeAttempt || 1}/3 进行中` : `${attemptCount} 次探测`
+  const liveProgressValue = isActive ? Math.max(18, Math.round(((activeAttempt || 1) / 3) * 100)) : progressValue
 
   return (
     <article className={`result-row${isActive ? ' result-row--active' : ''}`}>
@@ -103,7 +106,7 @@ export const ResultRow = memo(function ResultRow({ target, result, isRunning, is
           ))}
         </div>
         <div className="result-row__meta">
-          <span className="result-row__meta-pill">{attemptCount} 次探测</span>
+          <span className="result-row__meta-pill">{attemptLabel}</span>
           <span className="result-row__meta-pill">成功率 {successRate}</span>
           <span className="result-row__meta-pill">{confidence} 置信度</span>
           <span className="result-row__meta-pill">平均 {latency}</span>
@@ -115,8 +118,8 @@ export const ResultRow = memo(function ResultRow({ target, result, isRunning, is
           <span>性能等级</span>
           <strong>{getPerformanceLabel(result)}</strong>
         </div>
-        <div className="progress-track">
-          <span className={`progress-bar progress-bar--${status}`} style={{ width: `${progressValue}%` }} />
+        <div className="progress-track progress-track--result-row">
+          <span className={`progress-bar progress-bar--${status}`} style={{ width: `${liveProgressValue}%` }} />
         </div>
       </div>
 
