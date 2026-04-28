@@ -1,0 +1,66 @@
+import type { ProbeResult, Target } from '../types'
+import { ResultRow } from './ResultRow'
+
+interface GroupPanelItem {
+  target: Target
+  result?: ProbeResult
+  attemptCount: number
+}
+
+interface GroupPanelProps {
+  title: string
+  eyebrow: string
+  headline: string
+  description: string
+  items: GroupPanelItem[]
+  isRunning: boolean
+  activeTargetId: string | null
+}
+
+export function GroupPanel({
+  title,
+  eyebrow,
+  headline,
+  description,
+  items,
+  isRunning,
+  activeTargetId,
+}: GroupPanelProps) {
+  const resolvedCount = items.filter((item) => item.result).length
+  const completion = Math.round((resolvedCount / items.length) * 100)
+
+  return (
+    <section className="group-panel card">
+      <header className="group-panel__header">
+        <div>
+          <p className="eyebrow">{eyebrow}</p>
+          <h2>{title}</h2>
+          <strong>{headline}</strong>
+        </div>
+        <div className="group-panel__summary">
+          <p>{description}</p>
+          <div className="group-panel__progress">
+            <span>{resolvedCount}/{items.length} 已返回</span>
+            <span>{completion}%</span>
+          </div>
+          <div className="progress-track progress-track--thin">
+            <span className="progress-bar progress-bar--group" style={{ width: `${completion}%` }} />
+          </div>
+        </div>
+      </header>
+
+      <div className="group-panel__list">
+        {items.map((item) => (
+          <ResultRow
+            key={item.target.id}
+            target={item.target}
+            result={item.result}
+            attemptCount={item.attemptCount}
+            isRunning={isRunning}
+            isActive={activeTargetId === item.target.id}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
