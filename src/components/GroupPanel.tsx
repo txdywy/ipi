@@ -1,31 +1,65 @@
-import type { ProbeResult } from '../types'
+import type { ProbeResult, Target } from '../types'
 import { ResultRow } from './ResultRow'
+
+interface GroupPanelItem {
+  target: Target
+  result?: ProbeResult
+  attemptCount: number
+}
 
 interface GroupPanelProps {
   title: string
+  eyebrow: string
+  headline: string
   description: string
-  results: ProbeResult[]
+  items: GroupPanelItem[]
   isRunning: boolean
+  activeTargetId: string | null
 }
 
-export function GroupPanel({ title, description, results, isRunning }: GroupPanelProps) {
+export function GroupPanel({
+  title,
+  eyebrow,
+  headline,
+  description,
+  items,
+  isRunning,
+  activeTargetId,
+}: GroupPanelProps) {
+  const resolvedCount = items.filter((item) => item.result).length
+  const completion = Math.round((resolvedCount / items.length) * 100)
+
   return (
-    <section className="card group-panel">
+    <section className="group-panel card">
       <header className="group-panel__header">
         <div>
-          <p className="eyebrow">TARGET GROUP</p>
+          <p className="eyebrow">{eyebrow}</p>
           <h2>{title}</h2>
+          <strong>{headline}</strong>
         </div>
-        <p>{description}</p>
-      </header>
-      <div className="group-panel__list">
-        {results.length > 0 ? (
-          results.map((result) => <ResultRow key={result.target.id} result={result} />)
-        ) : (
-          <div className="result-row result-row--empty">
-            <span>{isRunning ? '检测进行中，结果即将出现…' : '尚未开始检测'}</span>
+        <div className="group-panel__summary">
+          <p>{description}</p>
+          <div className="group-panel__progress">
+            <span>{resolvedCount}/{items.length} 已返回</span>
+            <span>{completion}%</span>
           </div>
-        )}
+          <div className="progress-track progress-track--thin">
+            <span className="progress-bar progress-bar--group" style={{ width: `${completion}%` }} />
+          </div>
+        </div>
+      </header>
+
+      <div className="group-panel__list">
+        {items.map((item) => (
+          <ResultRow
+            key={item.target.id}
+            target={item.target}
+            result={item.result}
+            attemptCount={item.attemptCount}
+            isRunning={isRunning}
+            isActive={activeTargetId === item.target.id}
+          />
+        ))}
       </div>
     </section>
   )

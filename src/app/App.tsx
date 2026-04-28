@@ -1,11 +1,13 @@
-import { useMemo, useState } from 'react'
-import { GROUPS } from '../config/targets'
+import { useEffect, useMemo, useState } from 'react'
 import { GroupPanel } from '../components/GroupPanel'
 import { SummaryCards } from '../components/SummaryCards'
+import { GROUPS, TARGETS } from '../config/targets'
 import { runAllProbes } from '../lib/probes/probeRunner'
 import type { ProbeResult } from '../types'
 
 type RunState = 'idle' | 'running' | 'done'
+
+let hasAutoStarted = false
 
 const formatTime = (value: Date | null) => {
   if (!value) return '尚未检测'
@@ -20,23 +22,63 @@ export function App() {
   const [runState, setRunState] = useState<RunState>('idle')
   const [results, setResults] = useState<ProbeResult[]>([])
   const [lastRunAt, setLastRunAt] = useState<Date | null>(null)
+  const [activeTargetId, setActiveTargetId] = useState<string | null>(null)
+  const [completedCount, setCompletedCount] = useState(0)
+  const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({})
+  const [runCount, setRunCount] = useState(0)
+
+  const totalCount = TARGETS.length
 
   const grouped = useMemo(
     () =>
       GROUPS.map((group) => ({
         ...group,
-        results: results.filter((result) => result.target.group === group.key),
+        items: TARGETS.filter((target) => target.group === group.key).map((target) => ({
+          target,
+          result: results.find((result) => result.target.id === target.id),
+          attemptCount: attemptCounts[target.id] ?? 0,
+        })),
       })),
-    [results],
+    [attemptCounts, results],
   )
 
+  const activeTarget = TARGETS.find((target) => target.id === activeTargetId) ?? null
+
   const startCheckup = async () => {
+    if (runState === 'running') return
+
     setRunState('running')
-    const nextResults = await runAllProbes()
+    setResults([])
+    setCompletedCount(0)
+    setActiveTargetId(null)
+    setRunCount((value) => value + 1)
+
+    const nextResults = await runAllProbes({
+      onTargetStart: (target) => {
+        setActiveTargetId(target.id)
+      },
+      onTargetFinish: (result, completed) => {
+        setResults((current) => [...current, result])
+        setCompletedCount(completed)
+        setAttemptCounts((current) => ({
+          ...current,
+          [result.target.id]: (current[result.target.id] ?? 0) + 1,
+        }))
+      },
+    })
+
     setResults(nextResults)
+    setCompletedCount(nextResults.length)
     setLastRunAt(new Date())
+    setActiveTargetId(null)
     setRunState('done')
   }
+
+  useEffect(() => {
+    if (hasAutoStarted) return
+    hasAutoStarted = true
+    void startCheckup()
+  }, [])
 
   const statusText =
     runState === 'idle'
@@ -49,46 +91,105 @@ export function App() {
     <div className="shell">
       <div className="shell__glow shell__glow--left" />
       <div className="shell__glow shell__glow--right" />
+      <div className="shell__grid" />
       <main className="page">
         <section className="hero card">
-          <div>
+          <div className="hero__intro">
             <p className="eyebrow">IPI NETWORK CHECKUP</p>
             <h1>当前网络访问体检</h1>
             <p className="hero__copy">
-              面向当前访问者，快速观察这条网络对中国大陆、国际主流与高干扰目标站点的访问表现。
+              页面打开即自动完成第一轮检测，重点观察当前访问者对中国大陆、国际主流与困难目标的网页资源访问表现。
             </p>
-          </div>
-          <div className="hero__actions">
-            <button className="primary-button" onClick={() => void startCheckup()} disabled={runState === 'running'}>
-              {runState === 'running' ? '检测进行中…' : results.length > 0 ? '重新检测' : '开始检测'}
-            </button>
-            <div className="hero__meta">
-              <span>状态：{statusText}</span>
-              <span>最近一次：{formatTime(lastRunAt)}</span>
+            <div className="hero__chips">
+              <span className="hero-chip">纯前端采样</span>
+              <span className="hero-chip">逐项返回</span>
+              <span className="hero-chip">PC / Mobile 自适应</span>
             </div>
+          </div>
+
+          <div className="hero__panel">
+            <div className="hero__status-card">
+              <span className="hero__status-label">当前状态</span>
+              <strong>{statusText}</strong>
+              <p>
+                {runState === 'running'
+                  ? activeTarget
+                    ? `正在检测 ${activeTarget.label}，结果会按目标逐项落入页面。`
+                    : '正在准备第一项检测。'
+                  : '结果会保留为当前网络环境的一次即时快照。'}
+              </p>
+            </div>
+
+            <div className="hero__stat-grid">
+              <div>
+                <span>目标数量</span>
+                <strong>{totalCount}</strong>
+              </div>
+              <div>
+                <span>检测轮次</span>
+                <strong>{runCount}</strong>
+              </div>
+              <div>
+                <span>最近一次</span>
+                <strong>{formatTime(lastRunAt)}</strong>
+              </div>
+              <div>
+                <span>当前进度</span>
+                <strong>{completedCount}/{totalCount}</strong>
+              </div>
+            </div>
+
+            <div className="hero__progress-block">
+              <div className="hero__progress-meta">
+                <span>全局测试进度</span>
+                <strong>{Math.round((completedCount / totalCount) * 100)}%</strong>
+              </div>
+              <div className="progress-track progress-track--hero">
+                <span className="progress-bar progress-bar--group" style={{ width: `${Math.round((completedCount / totalCount) * 100)}%` }} />
+              </div>
+            </div>
+
+            <button className="primary-button" onClick={() => void startCheckup()} disabled={runState === 'running'}>
+              {runState === 'running' ? '本轮检测进行中…' : '重新测试'}
+            </button>
           </div>
         </section>
 
-        <SummaryCards results={results} />
+        <SummaryCards
+          results={results}
+          completedCount={completedCount}
+          totalCount={totalCount}
+          runState={runState}
+        />
 
         <section className="method card">
           <div>
-            <h2>如何理解结果</h2>
+            <p className="eyebrow">HOW TO READ</p>
+            <h2>如何理解这些颜色与结论</h2>
             <p>
-              这是基于浏览器侧资源访问行为的前端检测，不等于完整网络诊断。对跨域、证书、链路策略等底层原因，页面只会给出谨慎分类而不是绝对判断。
+              这是基于浏览器侧资源访问行为的前端检测，不等于完整网络诊断。页面重点呈现“能否顺利拿到响应、是否偏慢、是否出现明显困难”，而不会把所有失败都解释成同一种底层原因。
             </p>
           </div>
           <div className="method__legend">
-            <span className="pill pill--reachable">可达</span>
+            <span className="pill pill--reachable">顺畅</span>
             <span className="pill pill--slow">偏慢</span>
-            <span className="pill pill--warn">高干扰 / 超时</span>
+            <span className="pill pill--warn">困难 / 超时</span>
             <span className="pill pill--muted">结论有限</span>
           </div>
         </section>
 
         <section className="groups">
           {grouped.map((group) => (
-            <GroupPanel key={group.key} title={group.label} description={group.description} results={group.results} isRunning={runState === 'running'} />
+            <GroupPanel
+              key={group.key}
+              title={group.label}
+              eyebrow={group.eyebrow}
+              headline={group.headline}
+              description={group.description}
+              items={group.items}
+              isRunning={runState === 'running'}
+              activeTargetId={activeTargetId}
+            />
           ))}
         </section>
       </main>

@@ -10,11 +10,11 @@ export const classifyProbeResult = (
     return {
       target,
       raw,
-      status: target.group === 'interference' ? 'likely_interfered' : 'timeout',
-      confidence: target.group === 'interference' ? 'medium' : 'high',
+      status: target.group === 'challenge' ? 'challenging' : 'timeout',
+      confidence: target.group === 'challenge' ? 'medium' : 'high',
       reason:
-        target.group === 'interference'
-          ? '长时间没有完成访问，符合高干扰目标常见异常表现。'
+        target.group === 'challenge'
+          ? '长时间没有完成访问，这类目标在当前网络里更容易表现出明显波动。'
           : '在设定时间内没有完成访问。',
     }
   }
@@ -39,18 +39,18 @@ export const classifyProbeResult = (
       latencyMs: Math.round(raw.durationMs),
       reason:
         raw.signal === 'opaque'
-          ? '浏览器拿到了可访问响应，但跨域限制使细节不可见。'
+          ? '浏览器拿到了可访问响应，但跨域限制使更多细节不可见。'
           : '访问成功，且在预期时间内完成。',
     }
   }
 
-  if (target.group === 'interference') {
+  if (target.group === 'challenge') {
     return {
       target,
       raw,
-      status: 'likely_interfered',
+      status: 'challenging',
       confidence: 'medium',
-      reason: '访问失败，且该目标属于更容易受干扰的类别。',
+      reason: '访问失败，且该目标本身更容易在当前链路上出现波动。',
     }
   }
 

@@ -1,8 +1,8 @@
-export type GroupKey = 'mainland' | 'global' | 'interference'
+export type GroupKey = 'mainland' | 'global' | 'challenge'
 
 export type ProbeType = 'image' | 'script' | 'fetch'
 
-export type ProbeStatus = 'idle' | 'running' | 'reachable' | 'slow' | 'timeout' | 'likely_interfered' | 'inconclusive'
+export type ProbeStatus = 'idle' | 'running' | 'reachable' | 'slow' | 'timeout' | 'challenging' | 'inconclusive'
 
 export type ProbeSignal = 'load' | 'error' | 'opaque' | 'timeout'
 
@@ -14,9 +14,13 @@ export interface Target {
   group: GroupKey
   probeType: ProbeType
   url: string
+  logoUrl: string
   timeoutMs: number
   expectedSignal?: 'load' | 'opaque'
   notes?: string
+  location: string
+  tags: string[]
+  emphasis: string
 }
 
 export interface ProbeRawResult {
@@ -40,4 +44,6 @@ export interface GroupMeta {
   key: GroupKey
   label: string
   description: string
+  eyebrow: string
+  headline: string
 }

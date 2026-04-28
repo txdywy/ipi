@@ -8,8 +8,12 @@ const target: Target = {
   group: 'global',
   probeType: 'image',
   url: 'https://example.com/demo.png',
+  logoUrl: 'https://example.com/favicon.ico',
   timeoutMs: 5000,
   expectedSignal: 'load',
+  location: 'Global · Demo',
+  tags: ['演示'],
+  emphasis: '示例目标。',
 }
 
 const classify = (raw: ProbeRawResult) => classifyProbeResult(target, raw)
@@ -50,16 +54,16 @@ describe('classifyProbeResult', () => {
     expect(result.status).toBe('inconclusive')
   })
 
-  it('marks interference timeouts as likely interfered', () => {
-    const interferenceTarget: Target = { ...target, group: 'interference' }
-    const result = classifyProbeResult(interferenceTarget, {
-      targetId: interferenceTarget.id,
+  it('marks challenge timeouts as challenging', () => {
+    const challengeTarget: Target = { ...target, group: 'challenge' }
+    const result = classifyProbeResult(challengeTarget, {
+      targetId: challengeTarget.id,
       signal: 'timeout',
       ok: false,
       durationMs: 7000,
     })
 
-    expect(result.status).toBe('likely_interfered')
+    expect(result.status).toBe('challenging')
     expect(result.confidence).toBe('medium')
   })
 })
