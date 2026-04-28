@@ -54,7 +54,7 @@ This runs the Vitest suite, including classifier logic and visitor profile data-
 
 - The app auto-starts a browser-side checkup when the page loads.
 - Each configured target is probed 3 times with limited concurrency and then classified into statuses such as `reachable`, `slow`, `challenging`, or `inconclusive`.
-- Targets are grouped into three sections: 中国大陆, 国际主流, and 困难目标.
+- Targets are grouped into five sections: 中国大陆, 港澳台, 国际主流, 游戏娱乐, and 困难目标.
 - A separate visitor profile panel attempts to resolve the current visitor's public IPv4 and IPv6 addresses and enrich them with geolocation and network metadata.
 
 ## Usage details
@@ -94,3 +94,15 @@ The summary cards aggregate:
 - visitor profile readiness
 
 The dashboard presents browser-observable behavior only; it does not claim to be a full network diagnostic tool.
+
+## Documentation
+
+More detailed project notes live in `docs/`:
+
+- [Architecture](docs/ARCHITECTURE.md) — module boundaries, data flow, and runtime responsibilities.
+- [Configuration](docs/CONFIGURATION.md) — target and IP provider config shape, defaults, and extension points.
+- [Target catalog](docs/TARGET_CATALOG.md) — current target taxonomy, inclusion rules, and maintenance checklist.
+- [Probe model](docs/PROBE_MODEL.md) — browser probe behavior, classification rules, concurrency, and known limits.
+- [IP providers](docs/IP_PROVIDERS.md) — public IP discovery and attribution provider behavior.
+- [Development guide](docs/DEVELOPMENT.md) — local workflow, checks, testing strategy, and release notes.
+- [Operations guide](docs/OPERATIONS.md) — deployment assumptions, troubleshooting, and browser-side caveats.

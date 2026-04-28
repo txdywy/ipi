@@ -1,4 +1,5 @@
-import { TARGETS } from '../config/targets'
+import { GROUPS } from '../config/targets'
+import { ATTEMPTS_PER_TARGET } from '../lib/probes/probeRunner'
 import type { ProbeResult, ProbeStatus, VisitorProfile } from '../types'
 
 const STATUSES: Array<{ key: ProbeStatus; label: string }> = [
@@ -9,9 +10,19 @@ const STATUSES: Array<{ key: ProbeStatus; label: string }> = [
 ]
 
 const averageLatency = (results: ProbeResult[]) => {
-  const values = results.flatMap((result) => (typeof result.latencyMs === 'number' ? [result.latencyMs] : []))
+  const values = results
+    .flatMap((result) => (typeof result.latencyMs === 'number' ? [result.latencyMs] : []))
+    .sort((a, b) => a - b)
+
   if (values.length === 0) return '--'
-  return `${Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)} ms`
+
+  // Trimmed Mean: Remove top and bottom 10% to reduce outlier impact
+  const trimCount = Math.floor(values.length * 0.1)
+  const trimmedValues = values.slice(trimCount, values.length - trimCount)
+  const targetValues = trimmedValues.length > 0 ? trimmedValues : values
+
+  const sum = targetValues.reduce((s, v) => s + v, 0)
+  return `${Math.round(sum / targetValues.length)} ms`
 }
 
 const averageSuccessRate = (results: ProbeResult[]) => {
@@ -31,6 +42,7 @@ export function SummaryCards({ results, completedCount, totalCount, runState, vi
   const completion = totalCount === 0 ? 0 : Math.round((completedCount / totalCount) * 100)
   const reachableCount = results.filter((result) => result.status === 'reachable').length
   const coverage = `${completedCount}/${totalCount}`
+  const groupLabels = GROUPS.map(g => g.label).join('、')
 
   return (
     <section className="summary-grid">
@@ -58,13 +70,13 @@ export function SummaryCards({ results, completedCount, totalCount, runState, vi
       <article className="summary-card card">
         <span className="summary-card__label">平均成功率</span>
         <strong>{averageSuccessRate(results)}</strong>
-        <p>基于每个目标 3 次探测的成功占比汇总。</p>
+        <p>基于每个目标 {ATTEMPTS_PER_TARGET} 次探测的成功占比汇总。</p>
       </article>
 
       <article className="summary-card card">
         <span className="summary-card__label">平均耗时</span>
         <strong>{averageLatency(results)}</strong>
-        <p>仅统计浏览器可以观测到成功返回的平均耗时。</p>
+        <p>剔除极端离群值后的平均成功响应耗时。</p>
       </article>
 
       {STATUSES.map((status) => {
@@ -94,8 +106,8 @@ export function SummaryCards({ results, completedCount, totalCount, runState, vi
 
       <article className="summary-card card">
         <span className="summary-card__label">分组数量</span>
-        <strong>{new Set(TARGETS.map((target) => target.group)).size}</strong>
-        <p>当前覆盖中国大陆、港澳台、国际主流、游戏娱乐与困难目标。</p>
+        <strong>{GROUPS.length}</strong>
+        <p>当前覆盖{groupLabels}等 {GROUPS.length} 个观测维度。</p>
       </article>
     </section>
   )

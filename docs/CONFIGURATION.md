@@ -19,6 +19,7 @@ Primary configuration files:
 - `src/config/targets.ts` — defines the probe target catalog through `GROUPS` and `TARGETS` arrays.
 - `src/config/ipProviders.ts` — defines public IP address and IP intelligence providers through `IP_ADDRESS_PROVIDERS` and `IP_INTEL_PROVIDERS` arrays.
 - `vite.config.ts` — defines the Vite and Vitest build/test configuration.
+- `src/lib/probes/probeRunner.ts` — defines probe runtime constants such as attempts per target and concurrency limits.
 
 Minimal examples from the current config structure:
 
@@ -88,11 +89,39 @@ The following defaults are defined in source code:
 | Setting | Default | Where it is set |
 | --- | --- | --- |
 | Vite public base path | `'./'` | `vite.config.ts` |
+| Target groups | `mainland`, `hmt`, `global`, `gaming`, `challenge` | `src/config/targets.ts` and `src/types/index.ts` |
+| Attempts per target | `3` | `src/lib/probes/probeRunner.ts` |
+| Global target concurrency | `10` | `src/lib/probes/probeRunner.ts` |
+| Per-origin concurrency | `2` | `src/lib/probes/probeRunner.ts` |
+| Slow latency threshold | `2500ms` | `src/lib/classify/classifier.ts` |
+| IP intelligence provider timeout | `4000ms` | `src/lib/ip/fetchIpIntel.ts` |
 | IP address fetch `mode` | `'cors'` when a provider does not specify `corsMode` | `src/lib/ip/fetchIpAddress.ts` |
 | IP intelligence fetch `mode` | `'cors'` when a provider does not specify `corsMode` | `src/lib/ip/fetchIpIntel.ts` |
 | Missing IP provider result | Returns an `unavailable` record with source `config` | `src/lib/ip/fetchIpAddress.ts` |
 | IPv6 provider error confidence | `'low'` on fetch failure | `src/lib/ip/fetchIpAddress.ts` |
 | IPv4 provider error confidence | `'medium'` on fetch failure | `src/lib/ip/fetchIpAddress.ts` |
+
+## Target catalog settings
+
+`GROUPS` controls the UI sections and their explanatory copy. `TARGETS` controls the actual probe list. A target must use a `group` that exists in `GroupKey`, otherwise TypeScript should fail during build.
+
+The current catalog is documented in more detail in `docs/TARGET_CATALOG.md`.
+
+## Probe runtime settings
+
+Probe runtime constants currently live in source code rather than environment config:
+
+- `ATTEMPTS_PER_TARGET = 3`
+- `TARGET_CONCURRENCY = 10`
+- `ORIGIN_CONCURRENCY = 2`
+
+These are intentionally not exposed as user-facing controls yet. If the target list grows significantly, consider promoting them into a typed config object so tests and documentation can import the same values.
+
+## IP provider settings
+
+IP providers are public browser-side endpoints. Do not put private API keys in `src/config/ipProviders.ts`.
+
+Use `docs/IP_PROVIDERS.md` when changing provider order, adding parsers, or deciding whether a provider is suitable for frontend use.
 
 ## Per-environment overrides
 
