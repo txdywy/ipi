@@ -47,6 +47,14 @@ export const IP_INTEL_PROVIDERS: IpIntelProvider[] = [
     supportsFamilies: ['ipv4', 'ipv6'],
   },
   {
+    key: 'ip-api',
+    label: 'ip-api.com',
+    endpoint: 'http://ip-api.com/json/',
+    corsMode: 'cors',
+    parser: 'ip-api',
+    supportsFamilies: ['ipv4'],
+  },
+  {
     key: 'ipwhois-app',
     label: 'ipwho.is',
     endpoint: 'https://ipwho.is/',

@@ -81,6 +81,19 @@ describe('buildVisitorProfile', () => {
         asn_organization: 'Cloudflare, Inc.',
         asn: 13335,
       }),
+      'http://ip-api.com/json/1.1.1.1?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting': jsonResponse({
+        status: 'success',
+        country: 'Australia',
+        countryCode: 'AU',
+        regionName: 'Queensland',
+        city: 'South Brisbane',
+        timezone: 'Australia/Brisbane',
+        isp: 'Cloudflare, Inc',
+        org: 'APNIC and Cloudflare DNS Resolver project',
+        as: 'AS13335 Cloudflare, Inc.',
+        asname: 'CLOUDFLARENET',
+        hosting: true,
+      }),
       'https://ipwho.is/1.1.1.1': jsonResponse({ success: false, message: 'CORS is not supported on the Free plan' }, 403),
       'https://api.ipapi.is/?q=240c%3A%3A1': jsonResponse({
         location: { country: 'China', country_code: 'CN', state: 'Beijing', city: 'Beijing', timezone: 'Asia/Shanghai' },
@@ -130,6 +143,7 @@ describe('buildVisitorProfile', () => {
     expect(profile.dataSources.length).toBe(2)
     expect(profile.ipv4?.source).toContain('ipapi.co')
     expect(profile.ipv4?.source).toContain('api.ip.sb')
+    expect(profile.ipv4?.source).toContain('ip-api.com')
   })
 
   it('fills missing ipv4 intel fields from later providers without overwriting earlier values', async () => {
@@ -153,6 +167,19 @@ describe('buildVisitorProfile', () => {
         isp: 'Cloudflare',
         asn_organization: 'CLOUDFLARENET',
         asn: 13335,
+      }),
+      'http://ip-api.com/json/1.1.1.1?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting': jsonResponse({
+        status: 'success',
+        country: 'Australia',
+        countryCode: 'AU',
+        regionName: 'Queensland',
+        city: 'South Brisbane',
+        timezone: 'Australia/Brisbane',
+        isp: 'Cloudflare, Inc',
+        org: 'APNIC and Cloudflare DNS Resolver project',
+        as: 'AS13335 Cloudflare, Inc.',
+        asname: 'CLOUDFLARENET',
+        hosting: true,
       }),
       'https://ipwho.is/1.1.1.1': jsonResponse({ success: false, message: 'CORS is not supported on the Free plan' }, 403),
     })
@@ -206,6 +233,10 @@ describe('buildVisitorProfile', () => {
         asn_organization: 'CLOUDFLARENET',
         asn: 13335,
       }),
+      'http://ip-api.com/json/1.1.1.1?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting': jsonResponse({
+        status: 'fail',
+        message: 'quota exceeded',
+      }),
       'https://ipwho.is/1.1.1.1': jsonResponse({
         success: false,
         message: 'quota exceeded',
@@ -240,6 +271,19 @@ describe('buildVisitorProfile', () => {
         organization: 'Google LLC',
         asn_organization: 'Google LLC',
         asn: 15169,
+      }),
+      'http://ip-api.com/json/8.8.8.8?fields=status,message,country,countryCode,regionName,city,timezone,isp,org,as,asname,mobile,proxy,hosting': jsonResponse({
+        status: 'success',
+        country: 'United States',
+        countryCode: 'US',
+        regionName: 'California',
+        city: 'Mountain View',
+        timezone: 'America/Los_Angeles',
+        isp: 'Google LLC',
+        org: 'Google LLC',
+        as: 'AS15169 Google LLC',
+        asname: 'GOOGLE',
+        hosting: true,
       }),
       'https://ipwho.is/8.8.8.8': jsonResponse({ success: false, message: 'CORS is not supported on the Free plan' }, 403),
     })
