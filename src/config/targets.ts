@@ -1,0 +1,103 @@
+import type { GroupMeta, Target } from '../types'
+
+export const GROUPS: GroupMeta[] = [
+  {
+    key: 'mainland',
+    label: '中国大陆',
+    description: '观察当前网络访问中国大陆主流站点的基础表现。',
+  },
+  {
+    key: 'global',
+    label: '国际主流',
+    description: '观察当前网络访问全球常用开放互联网入口的表现。',
+  },
+  {
+    key: 'interference',
+    label: '高干扰目标',
+    description: '观察更容易受到网络干扰或策略影响的典型目标。',
+  },
+]
+
+export const TARGETS: Target[] = [
+  {
+    id: 'baidu-home',
+    label: 'Baidu',
+    group: 'mainland',
+    probeType: 'image',
+    url: 'https://www.baidu.com/img/flexible/logo/pc/result.png',
+    timeoutMs: 6000,
+    expectedSignal: 'load',
+  },
+  {
+    id: 'zhihu-favicon',
+    label: 'Zhihu',
+    group: 'mainland',
+    probeType: 'image',
+    url: 'https://static.zhihu.com/heifetz/favicon.ico',
+    timeoutMs: 6000,
+    expectedSignal: 'load',
+  },
+  {
+    id: 'bilibili-favicon',
+    label: 'Bilibili',
+    group: 'mainland',
+    probeType: 'image',
+    url: 'https://www.bilibili.com/favicon.ico',
+    timeoutMs: 6000,
+    expectedSignal: 'load',
+  },
+  {
+    id: 'wikipedia-logo',
+    label: 'Wikipedia',
+    group: 'global',
+    probeType: 'image',
+    url: 'https://www.wikipedia.org/portal/wikipedia.org/assets/img/Wikipedia-logo-v2.png',
+    timeoutMs: 7000,
+    expectedSignal: 'load',
+  },
+  {
+    id: 'github-favicon',
+    label: 'GitHub',
+    group: 'global',
+    probeType: 'image',
+    url: 'https://github.githubassets.com/favicons/favicon.png',
+    timeoutMs: 7000,
+    expectedSignal: 'load',
+  },
+  {
+    id: 'cloudflare-cdn',
+    label: 'Cloudflare',
+    group: 'global',
+    probeType: 'fetch',
+    url: 'https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css',
+    timeoutMs: 7000,
+    expectedSignal: 'opaque',
+  },
+  {
+    id: 'google-favicon',
+    label: 'Google',
+    group: 'interference',
+    probeType: 'image',
+    url: 'https://www.google.com/favicon.ico',
+    timeoutMs: 7000,
+    expectedSignal: 'load',
+  },
+  {
+    id: 'youtube-favicon',
+    label: 'YouTube',
+    group: 'interference',
+    probeType: 'image',
+    url: 'https://www.youtube.com/s/desktop/6d1d1102/img/favicon_32x32.png',
+    timeoutMs: 7000,
+    expectedSignal: 'load',
+  },
+  {
+    id: 'telegram-web',
+    label: 'Telegram Web',
+    group: 'interference',
+    probeType: 'fetch',
+    url: 'https://web.telegram.org/',
+    timeoutMs: 7000,
+    expectedSignal: 'opaque',
+  },
+]
